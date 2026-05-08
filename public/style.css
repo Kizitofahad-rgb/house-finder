@@ -1,14 +1,239 @@
-body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-nav { background: #2d89ef; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
-nav button { background: white; border: none; color: #2d89ef; padding: 0.5rem 1rem; margin-left: 0.5rem; cursor: pointer; border-radius: 4px; }
-nav button:hover { background: #e6f0ff; }
-main { padding: 2rem; max-width: 800px; margin: auto; }
-.form-group { margin-bottom: 1rem; }
-label { display: block; margin-bottom: 0.3rem; font-weight: bold; }
-input, select, textarea { width: 100%; padding: 0.5rem; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-button.primary { background: #2d89ef; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 4px; cursor: pointer; }
-button.primary:hover { background: #1a6dd4; }
-.listing-card { border: 1px solid #eee; padding: 1rem; margin-bottom: 1rem; border-radius: 4px; }
-.listing-card h3 { margin-top: 0; }
-.error { color: red; font-size: 0.9rem; }
-.success { color: green; font-size: 0.9rem; }
+/* === Modern Reset & Gradient Background === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+  background: linear-gradient(135deg, #11998e, #38ef7d, #36d1dc, #5b86e5);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  color: #2d3436;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Navigation */
+nav {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 0.8rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.nav-container {
+  max-width: 1200px;
+  margin: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.logo {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #11998e;
+  letter-spacing: -0.5px;
+}
+nav button {
+  background: transparent;
+  border: none;
+  color: #2d3436;
+  padding: 0.6rem 1.2rem;
+  margin-left: 0.3rem;
+  cursor: pointer;
+  border-radius: 50px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+nav button:hover {
+  background: #e8f0fe;
+  color: #11998e;
+}
+
+/* Main content card */
+main {
+  max-width: 1100px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  min-height: 70vh;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 1.5rem;
+  color: #636e72;
+  background: rgba(255,255,255,0.8);
+  backdrop-filter: blur(5px);
+  margin-top: 2rem;
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 1.2rem;
+}
+label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  color: #2d3436;
+}
+input, select, textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #dddddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border 0.2s;
+  background: white;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #11998e;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(17,153,142,0.2);
+}
+button.primary {
+  background: linear-gradient(135deg, #11998e, #38ef7d);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.8rem;
+  border-radius: 50px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+button.primary:hover {
+  opacity: 0.9;
+}
+button.secondary {
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 0.7rem 1.5rem;
+  border-radius: 50px;
+  cursor: pointer;
+}
+
+/* Search area */
+.search-area {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+.search-area input {
+  flex: 1;
+  min-width: 200px;
+}
+.search-area button {
+  background: linear-gradient(135deg, #11998e, #38ef7d);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+/* Listing cards – shopping style, small images */
+.listings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+.listing-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.listing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+.listing-card img {
+  width: 100%;
+  height: 140px;          /* small, fixed height */
+  object-fit: cover;
+  background: #f0f0f0;
+}
+.listing-card .card-body {
+  padding: 0.8rem;
+}
+.listing-card h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.2rem;
+  color: #2d3436;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.listing-card p {
+  font-size: 0.8rem;
+  color: #636e72;
+  margin-bottom: 0.2rem;
+}
+.listing-card .price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #11998e;
+}
+
+/* Dashboard cards – same small image style */
+.dashboard-form {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+}
+.image-preview {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+.image-preview img {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Auth forms */
+.auth-form {
+  max-width: 450px;
+  margin: 2rem auto;
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+.auth-form h2 {
+  margin-bottom: 1.5rem;
+  color: #11998e;
+}
+
+.error { color: #e74c3c; font-size: 0.9rem; }
+.success { color: #27ae60; }
+
+/* Remove default list styling for listings container (we'll keep the old ID but we'll update the HTML to use grid) */
+#listings-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+#my-listings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
