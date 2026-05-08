@@ -162,12 +162,17 @@ window.showAddListingForm = () => {
 
 window.addListing = async () => {
   const user = window.auth.currentUser;
-  const title = document.getElementById('new-title').value;
-  const location = document.getElementById('new-location').value;
+  if (!user) {
+    alert('You must be logged in as a landlord.');
+    return;
+  }
+
+  const title = document.getElementById('new-title').value.trim();
+  const location = document.getElementById('new-location').value.trim();
   const bedrooms = parseInt(document.getElementById('new-bedrooms').value);
   const price = parseInt(document.getElementById('new-price').value);
-  const contactEmail = document.getElementById('new-contact').value;
-  const description = document.getElementById('new-description').value;
+  const contactEmail = document.getElementById('new-contact').value.trim();
+  const description = document.getElementById('new-description').value.trim();
   const imageFiles = document.getElementById('new-images').files;
 
   if (!title || !location) {
@@ -175,39 +180,46 @@ window.addListing = async () => {
     return;
   }
 
-  // ---- Upload images to Cloudinary via Vercel endpoint ----
+  // Upload images to Cloudinary (with error handling)
   let imageURLs = [];
-  if (imageFiles.length > 0) {
-    for (let i = 0; i < imageFiles.length; i++) {
-      const file = imageFiles[i];
-      const reader = new FileReader();
-      
-      await new Promise((resolve, reject) => {
-        reader.onload = async (e) => {
-          try {
-            const response = await fetch('https://house-finder-mu.vercel.app/api/upload', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data: e.target.result })
-            });
-            const data = await response.json();
-            if (data.url) {
-              imageURLs.push(data.url);
-              resolve();
-            } else {
-              reject(new Error(data.error || 'Upload failed'));
+  try {
+    if (imageFiles.length > 0) {
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const reader = new FileReader();
+        
+        await new Promise((resolve, reject) => {
+          reader.onload = async (e) => {
+            try {
+              const response = await fetch('https://house-finder-mu.vercel.app/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: e.target.result })
+              });
+              const data = await response.json();
+              if (data.url) {
+                imageURLs.push(data.url);
+                console.log('Uploaded image:', data.url); // for debugging
+                resolve();
+              } else {
+                reject(new Error(data.error || 'Upload failed'));
+              }
+            } catch (err) {
+              reject(err);
             }
-          } catch (err) {
-            reject(err);
-          }
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+          };
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(file);
+        });
+      }
     }
+  } catch (uploadError) {
+    alert('Image upload failed: ' + uploadError.message);
+    console.error(uploadError);
+    return; // stop the whole listing process
   }
 
-  // ---- Save listing to Firestore ----
+  // Save listing to Firestore
   try {
     await addDoc(collection(window.db, 'listings'), {
       landlordId: user.uid,
@@ -217,9 +229,10 @@ window.addListing = async () => {
       createdAt: new Date()
     });
     document.getElementById('add-listing-form').style.display = 'none';
-    showSection('dashboard'); // refresh
+    showSection('dashboard'); // refresh dashboard
   } catch (error) {
-    alert('Error: ' + error.message);
+    alert('Error saving listing: ' + error.message);
+    console.error(error);
   }
 };
 
@@ -228,35 +241,43 @@ async function loadMyListings() {
   const container = document.getElementById('my-listings');
   if (!container) return;
   const user = window.auth.currentUser;
-  if (!user) return;
-  
-  const q = query(
-    collection(window.db, 'listings'),
-    where('landlordId', '==', user.uid),
-    orderBy('createdAt', 'desc')
-  );
-  const snapshot = await getDocs(q);
-  const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  if (listings.length === 0) {
-    container.innerHTML = '<p>You have no listings yet.</p>';
+  if (!user) {
+    container.innerHTML = '<p>Please log in to see your listings.</p>';
     return;
   }
-  container.innerHTML = listings.map(l => `
-    <div class="listing-card">
-      ${l.images && l.images.length > 0
-        ? `<img src="${l.images[0]}" alt="${l.title}">`
-        : `<div style="height:150px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-            <span style="color:#b2bec3;">No Image</span></div>`}
-      <div class="card-body">
-        <h3>${l.title} - ${l.location}</h3>
-        <p>Bedrooms: ${l.bedrooms} | Price: ${l.price.toLocaleString()} UGX</p>
-        <p>Status: ${l.active ? '✅ Active' : '⛔ Inactive'}</p>
-        <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
-          ${l.active ? 'Deactivate' : 'Activate'}
-        </button>
+  
+  try {
+    const q = query(
+      collection(window.db, 'listings'),
+      where('landlordId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    if (listings.length === 0) {
+      container.innerHTML = '<p>You have no listings yet.</p>';
+      return;
+    }
+    container.innerHTML = listings.map(l => `
+      <div class="listing-card">
+        ${l.images && l.images.length > 0
+          ? `<img src="${l.images[0]}" alt="${l.title}">`
+          : `<div style="height:150px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+              <span style="color:#b2bec3;">No Image</span></div>`}
+        <div class="card-body">
+          <h3>${l.title} - ${l.location}</h3>
+          <p>Bedrooms: ${l.bedrooms} | Price: ${l.price.toLocaleString()} UGX</p>
+          <p>Status: ${l.active ? '✅ Active' : '⛔ Inactive'}</p>
+          <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
+            ${l.active ? 'Deactivate' : 'Activate'}
+          </button>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
+  } catch (error) {
+    container.innerHTML = `<p class="error">Error loading your listings: ${error.message}</p>`;
+    console.error(error);
+  }
 }
 
 window.toggleListing = async (id, newStatus) => {
