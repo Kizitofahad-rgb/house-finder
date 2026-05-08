@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>House Finder Uganda</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    
+    // 🔽 YOUR CORRECTED FIREBASE CONFIG (already fixed commas)
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8qsb73uXIbfUgGSYb9v0TCzusiORvn3s",
+      authDomain: "studio-6076456451-c38fd.firebaseapp.com",
+      projectId: "studio-6076456451-c38fd",
+      storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
+      messagingSenderId: "657925779778",
+      appId: "1:657925779778:web:a82c2feb24e364d4aa18db"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window.auth = getAuth(app);
+    window.db = getFirestore(app);
+  </script>
+</head>
+<body>
+  <nav id="navbar">
+    <h1>🏠 House Finder</h1>
+    <div id="nav-links">
+      <span id="guest-links">
+        <button onclick="showSection('home')">Home</button>
+        <button onclick="showSection('login')">Login</button>
+        <button onclick="showSection('signup')">Sign Up</button>
+      </span>
+      <span id="user-links" style="display:none;">
+        <button onclick="showSection('home')">Home</button>
+        <button id="dashboard-btn" onclick="showSection('dashboard')">Dashboard</button>
+        <button onclick="logout()">Logout</button>
+      </span>
+    </div>
+  </nav>
+
+  <main id="app">
+    <!-- Sections will be injected here -->
+  </main>
+
+  <script type="module" src="auth.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
