@@ -1,4 +1,3 @@
-// api/upload.js
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -14,9 +13,7 @@ export default async function handler(req, res) {
 
   try {
     const fileStr = req.body.data;
-    const uploadResponse = await cloudinary.uploader.upload(fileStr, {
-      upload_preset: 'house-finder-preset', // optional, can be removed
-    });
+    const uploadResponse = await cloudinary.uploader.upload(fileStr);
     res.status(200).json({ url: uploadResponse.secure_url });
   } catch (error) {
     console.error(error);
