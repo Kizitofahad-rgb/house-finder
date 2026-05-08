@@ -1,5 +1,5 @@
 // api/upload.js
-const cloudinary = require('cloudinary').v2;
+import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   try {
     const fileStr = req.body.data;
     const uploadResponse = await cloudinary.uploader.upload(fileStr, {
-      upload_preset: 'house-finder-preset',
+      upload_preset: 'house-finder-preset', // optional, can be removed
     });
     res.status(200).json({ url: uploadResponse.secure_url });
   } catch (error) {
