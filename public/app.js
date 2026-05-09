@@ -1,11 +1,19 @@
 import {
-  collection, addDoc, getDocs, query, where, orderBy,
-  doc, getDoc, updateDoc
+  collection, addDoc, getDocs, query, where, orderBy, limit,
+  doc, getDoc, updateDoc, increment
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 window.currentSection = 'home';
 
-// ---- Navigation / Section Router ----
+// --------------------------------------------------------------
+//  CONFIG – CHANGE THESE TO YOUR REAL NUMBERS / DETAILS
+// --------------------------------------------------------------
+const YOUR_WHATSAPP_NUMBER = '256775989760';  // e.g., 256712345678 (no +)
+const APP_NAME = 'HouseFinder';
+
+// --------------------------------------------------------------
+//  ROUTER
+// --------------------------------------------------------------
 window.showSection = async (section) => {
   window.currentSection = section;
   const app = document.getElementById('app');
@@ -15,12 +23,14 @@ window.showSection = async (section) => {
     case 'signup': app.innerHTML = getSignupHTML(); break;
     case 'dashboard':
       app.innerHTML = await getDashboardHTML();
-      loadMyListings(); // load own listings immediately
+      loadMyListings();
       break;
   }
 };
 
-// ---- HOME PAGE ----
+// ==============================================================
+//  HOME PAGE
+// ==============================================================
 async function getHomeHTML() {
   return `
     <h2 style="margin-bottom:1.5rem;">Find Your Next Home</h2>
@@ -29,7 +39,7 @@ async function getHomeHTML() {
       <input type="number" id="maxPrice" placeholder="Max price (UGX/month)">
       <button onclick="searchListings()">Search</button>
     </div>
-    <div id="listings-container">Loading...</div>
+    <div id="listings-container" class="listings-grid">Loading...</div>
   `;
   setTimeout(() => loadListings(''), 100);
 }
@@ -37,40 +47,82 @@ async function getHomeHTML() {
 async function loadListings(locationFilter = '', maxPriceFilter = '') {
   const container = document.getElementById('listings-container');
   if (!container) return;
-  
-  let q = query(collection(window.db, 'listings'), where('active', '==', true));
+
+  // Query: active == true, ordered by featured desc, then createdAt desc
+  let q = query(
+    collection(window.db, 'listings'),
+    where('active', '==', true),
+    orderBy('featured', 'desc'),
+    orderBy('createdAt', 'desc')
+  );
+
   if (locationFilter) {
-    q = query(q, where('location', '>=', locationFilter),
-              where('location', '<=', locationFilter + '\uf8ff'));
+    // Note: Firestore doesn't support combining > / < with multiple orderBy easily,
+    // so we fetch all and filter client‑side for location (small datasets fine for now)
+    q = query(q);
   }
-  
+
   try {
     const snapshot = await getDocs(q);
     let listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Client‑side location filter if needed
+    if (locationFilter) {
+      const search = locationFilter.toLowerCase();
+      listings = listings.filter(l => l.location.toLowerCase().includes(search));
+    }
     if (maxPriceFilter) {
       listings = listings.filter(l => l.price <= parseInt(maxPriceFilter));
     }
+
     if (listings.length === 0) {
       container.innerHTML = '<p>No listings found. Be the first!</p>';
       return;
     }
+
     container.innerHTML = listings.map(l => `
-      <div class="listing-card">
+      <div class="listing-card ${l.featured ? 'featured' : ''}">
         ${l.images && l.images.length > 0
           ? `<img src="${l.images[0]}" alt="${l.title}">`
-          : `<div style="height:200px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+          : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
               <span style="color:#b2bec3;">No Image</span></div>`}
         <div class="card-body">
+          <div class="badge-group">
+            ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
+            ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+          </div>
           <h3>${l.title} - ${l.bedrooms} Bd</h3>
           <p><strong>📍</strong> ${l.location}</p>
           <p class="price">${l.price.toLocaleString()} UGX/month</p>
-          <p><strong>📞</strong> ${l.contactEmail || 'N/A'}</p>
-          <p>${l.description || ''}</p>
+          <p class="views">🔥 ${l.views || 0} views</p>
+          <div class="card-actions">
+            ${l.landlordWhatsApp ? 
+              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title)}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
+              : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
+            }
+          </div>
+          <p style="font-size:0.8rem; margin-top:0.5rem;">${l.description || ''}</p>
         </div>
       </div>
     `).join('');
+
+    // Increment view counts for all loaded listings (batched)
+    incrementViews(listings.map(l => l.id));
   } catch (error) {
     container.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+  }
+}
+
+async function incrementViews(listingIds) {
+  // Firestore batch writes not available in client SDK, so we loop.
+  // This is fine for a few listings; later you can move to a Cloud Function.
+  for (const id of listingIds) {
+    const ref = doc(window.db, 'listings', id);
+    try {
+      await updateDoc(ref, { views: increment(1) });
+    } catch (e) {
+      // ignore permission errors if any
+    }
   }
 }
 
@@ -80,7 +132,9 @@ window.searchListings = () => {
   loadListings(location, maxPrice);
 };
 
-// ---- AUTH FORMS ----
+// ==============================================================
+//  AUTH FORMS (unchanged)
+// ==============================================================
 function getLoginHTML() {
   return `
     <div class="auth-form">
@@ -91,7 +145,6 @@ function getLoginHTML() {
       <button class="primary" onclick="login(document.getElementById('login-email').value, document.getElementById('login-password').value)">Login</button>
     </div>`;
 }
-
 function getSignupHTML() {
   return `
     <div class="auth-form">
@@ -109,7 +162,9 @@ function getSignupHTML() {
     </div>`;
 }
 
-// ---- LANDLORD DASHBOARD ----
+// ==============================================================
+//  LANDLORD DASHBOARD
+// ==============================================================
 async function getDashboardHTML() {
   const user = window.auth.currentUser;
   if (!user) return '<p>Please login first.</p>';
@@ -119,9 +174,24 @@ async function getDashboardHTML() {
     return '<p class="error">Access denied. Only landlords can view this page.</p>';
   }
 
+  const userData = userDoc.data();
+  const listingCount = userData.listingCount || 0;
+  const listingLimit = userData.listingLimit || 2;
+  const canAddListing = listingCount < listingLimit;
+
   return `
     <h2>Welcome, Landlord!</h2>
-    <button class="primary" onclick="showAddListingForm()">+ Add New Listing</button>
+    <div class="dashboard-stats">
+      <p>Your Listings: <strong>${listingCount}</strong> / ${listingLimit} free slots</p>
+    </div>
+    ${canAddListing ? `
+      <button class="primary" onclick="showAddListingForm()">+ Add New Listing</button>
+    ` : `
+      <div class="upgrade-message">
+        <p>You've used all your free listing slots. Upgrade to Premium to add more.</p>
+        <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to upgrade my listing limit on ${APP_NAME}" target="_blank" class="wa-btn primary">💬 Upgrade via WhatsApp</a>
+      </div>
+    `}
     <div id="add-listing-form" class="dashboard-form" style="display:none;">
       <h3>New Listing</h3>
       <div class="form-group"><label>Title</label><input id="new-title" placeholder="e.g., Cozy 2BR in Central Division"></div>
@@ -129,6 +199,7 @@ async function getDashboardHTML() {
       <div class="form-group"><label>Bedrooms</label><input id="new-bedrooms" type="number" value="1"></div>
       <div class="form-group"><label>Price (UGX/month)</label><input id="new-price" type="number" value="500000"></div>
       <div class="form-group"><label>Contact Email</label><input id="new-contact" type="email"></div>
+      <div class="form-group"><label>WhatsApp Number (optional, e.g., 256712345678)</label><input id="new-whatsapp" type="text" placeholder="256..."></div>
       <div class="form-group"><label>Description</label><textarea id="new-description"></textarea></div>
       <div class="form-group">
         <label>Images (multiple)</label>
@@ -139,7 +210,7 @@ async function getDashboardHTML() {
       <button class="secondary" onclick="document.getElementById('add-listing-form').style.display='none'">Cancel</button>
     </div>
     <h3 style="margin:1.5rem 0 0.5rem;">Your Listings</h3>
-    <div id="my-listings">Loading...</div>
+    <div id="my-listings" class="listings-grid">Loading...</div>
   `;
 }
 
@@ -163,7 +234,17 @@ window.showAddListingForm = () => {
 window.addListing = async () => {
   const user = window.auth.currentUser;
   if (!user) {
-    alert('You must be logged in as a landlord.');
+    alert('You must be logged in.');
+    return;
+  }
+
+  // Check limits again
+  const userDoc = await getDoc(doc(window.db, 'users', user.uid));
+  const userData = userDoc.data();
+  const listingCount = userData.listingCount || 0;
+  const listingLimit = userData.listingLimit || 2;
+  if (listingCount >= listingLimit) {
+    alert('You have reached your free listing limit. Please upgrade.');
     return;
   }
 
@@ -172,6 +253,7 @@ window.addListing = async () => {
   const bedrooms = parseInt(document.getElementById('new-bedrooms').value);
   const price = parseInt(document.getElementById('new-price').value);
   const contactEmail = document.getElementById('new-contact').value.trim();
+  const landlordWhatsApp = document.getElementById('new-whatsapp').value.trim();
   const description = document.getElementById('new-description').value.trim();
   const imageFiles = document.getElementById('new-images').files;
 
@@ -180,14 +262,13 @@ window.addListing = async () => {
     return;
   }
 
-  // Upload images to Cloudinary (with error handling)
+  // Upload images
   let imageURLs = [];
   try {
     if (imageFiles.length > 0) {
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
         const reader = new FileReader();
-        
         await new Promise((resolve, reject) => {
           reader.onload = async (e) => {
             try {
@@ -199,7 +280,6 @@ window.addListing = async () => {
               const data = await response.json();
               if (data.url) {
                 imageURLs.push(data.url);
-                console.log('Uploaded image:', data.url); // for debugging
                 resolve();
               } else {
                 reject(new Error(data.error || 'Upload failed'));
@@ -208,35 +288,45 @@ window.addListing = async () => {
               reject(err);
             }
           };
-          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.onerror = reject;
           reader.readAsDataURL(file);
         });
       }
     }
   } catch (uploadError) {
     alert('Image upload failed: ' + uploadError.message);
-    console.error(uploadError);
-    return; // stop the whole listing process
+    return;
   }
 
-  // Save listing to Firestore
+  // Save listing
   try {
     await addDoc(collection(window.db, 'listings'), {
       landlordId: user.uid,
-      title, location, bedrooms, price, contactEmail, description,
+      title, location, bedrooms, price, contactEmail, landlordWhatsApp,
+      description,
       images: imageURLs,
       active: true,
+      featured: false,    // default not featured
+      verified: false,    // default not verified (you'll manually toggle)
+      views: 0,
       createdAt: new Date()
     });
+
+    // Increment user’s listing count
+    await updateDoc(doc(window.db, 'users', user.uid), {
+      listingCount: increment(1)
+    });
+
     document.getElementById('add-listing-form').style.display = 'none';
-    showSection('dashboard'); // refresh dashboard
+    showSection('dashboard');
   } catch (error) {
     alert('Error saving listing: ' + error.message);
-    console.error(error);
   }
 };
 
-// ---- Load own listings ----
+// ==============================================================
+//  LOAD MY LISTINGS (dashboard)
+// ==============================================================
 async function loadMyListings() {
   const container = document.getElementById('my-listings');
   if (!container) return;
@@ -259,32 +349,43 @@ async function loadMyListings() {
       return;
     }
     container.innerHTML = listings.map(l => `
-      <div class="listing-card">
+      <div class="listing-card ${l.featured ? 'featured' : ''}">
         ${l.images && l.images.length > 0
           ? `<img src="${l.images[0]}" alt="${l.title}">`
-          : `<div style="height:150px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+          : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
               <span style="color:#b2bec3;">No Image</span></div>`}
         <div class="card-body">
+          <div class="badge-group">
+            ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
+            ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+          </div>
           <h3>${l.title} - ${l.location}</h3>
           <p>Bedrooms: ${l.bedrooms} | Price: ${l.price.toLocaleString()} UGX</p>
           <p>Status: ${l.active ? '✅ Active' : '⛔ Inactive'}</p>
           <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
             ${l.active ? 'Deactivate' : 'Activate'}
           </button>
+          <!-- Feature request button (for landlord) -->
+          ${!l.featured ? `
+            <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to make my listing featured: ${l.title} (${l.id})" target="_blank" class="wa-btn" style="padding:0.3rem 0.6rem; font-size:0.8rem;">⭐ Get Featured</a>
+          ` : ''}
         </div>
       </div>
     `).join('');
   } catch (error) {
     container.innerHTML = `<p class="error">Error loading your listings: ${error.message}</p>`;
-    console.error(error);
   }
 }
 
 window.toggleListing = async (id, newStatus) => {
   await updateDoc(doc(window.db, 'listings', id), { active: newStatus });
   loadMyListings();
-  loadListings(); // refresh home listings if visible
+  loadListings();  // refresh home
 };
 
-// On page load show home
+// ==============================================================
+//  HELPERS (image upload endpoint already in fetch)
+// ==============================================================
+// (No changes needed)
+
 showSection('home');

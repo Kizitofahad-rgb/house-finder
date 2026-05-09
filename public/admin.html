@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – HouseFinder</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* minor overrides for admin */
+    .admin-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .toggle-group {
+      display: flex;
+      gap: 1rem;
+    }
+    .toggle-btn {
+      padding: 0.4rem 1rem;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    .toggle-btn.on {
+      background: #27ae60;
+      color: white;
+    }
+    .toggle-btn.off {
+      background: #e74c3c;
+      color: white;
+    }
+  </style>
+  <!-- Firebase SDKs (same config as your main app) -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8qsb73uXtbFugGSYb9v0TCzusiORvn3s",
+      authDomain: "studio-6076456451-c38fd.firebaseapp.com",
+      projectId: "studio-6076456451-c38fd",
+      storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
+      messagingSenderId: "657925779778",
+      appId: "1:657925779778:web:a82c2feb24e364d4aa18db"
+    };
+    const app = initializeApp(firebaseConfig);
+    window.auth = getAuth(app);
+    window.db = getFirestore(app);
+  </script>
+</head>
+<body>
+  <nav id="navbar">
+    <div class="nav-container">
+      <div class="logo">
+        <svg class="logo-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 10.5L12 3l9 7.5V21H3V10.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M9 21V12h6v9" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span>Admin Panel</span>
+      </div>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </nav>
+  <main id="admin-container">
+    <h2>Manage Listings</h2>
+    <div id="listing-list">Loading... (ensure you're logged in as your admin email)</div>
+  </main>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
