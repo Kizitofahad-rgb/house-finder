@@ -1,3 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – HouseFinder</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .admin-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .toggle-btn {
+      padding: 0.4rem 1rem;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    .toggle-btn.on { background: #27ae60; color: white; }
+    .toggle-btn.off { background: #e74c3c; color: white; }
+    #debug-info { background: #fffbcc; padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem; }
+  </style>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { getFirestore, collection, getDocs, query, orderBy, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8qsb73uXtbFugGSYb9v0TCzusiORvn3s",
+      authDomain: "studio-6076456451-c38fd.firebaseapp.com",
+      projectId: "studio-6076456451-c38fd",
+      storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
+      messagingSenderId: "657925779778",
+      appId: "1:657925779778:web:a82c2feb24e364d4aa18db"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const ADMIN_EMAIL = 'kizitofahad665@gmail.com'.trim();
+
+    function debug(msg) {
+      document.getElementById('debug-info').textContent = msg;
+    }
+
+    window.adminLogin = async () => {
+      const email = document.getElementById('admin-email').value.trim();
+      const password = document.getElementById('admin-password').value;
+      if (!email || !password) {
+        alert('Enter email and password');
+        return;
+      }
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        debug('Login successful. Checking admin rights...');
+      } catch (error) {
+        alert('Login failed: ' + error.message);
+        debug('Error: ' + error.message);
+      }
+    };
+
+    window.logout = async () => {
+      await signOut(auth);
+      document.getElementById('login-section').style.display = 'block';
+      document.getElementById('admin-panel').style.display = 'none';
+      debug('Logged out');
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      const loginSection = document.getElementById('login-section');
+      const adminPanel = document.getElementById('admin-panel');
+      const listingContainer = document.getElementById('listing-list');
+
+      if (!user) {
+        debug('Not logged in. Please sign in with admin email.');
+        loginSection.style.display = 'block';
+        adminPanel.style.display = 'none';
+        listingContainer.innerHTML = '';
+        return;
+      }
+
+      const loginMsg = `Logged in as: ${user.email} (Admin required: ${ADMIN_EMAIL})`;
+      debug(loginMsg);
+
+      if (user.email !== ADMIN_EMAIL) {
+        loginSection.style.display = 'block';
+        adminPanel.style.display = 'none';
+        listingContainer.innerHTML = '<p class="error">Access denied. Only admin can view this page.</p>';
+        return;
+      }
+
+      // Admin authorized
+      loginSection.style.display = 'none';
+      adminPanel.style.display = 'block';
+      await loadAdminListings();
+    });
+
+    async function loadAdminListings() {
+      const container = document.getElementById('listing-list');
+      try {
+        const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (listings.length === 0) {
+          container.innerHTML = '<p>No listings found.</p>';
+          return;
+        }
+        container.innerHTML = listings.map(l => `
+          <div class="admin-card">
+            <div>
+              <strong>${l.title || 'Untitled'}</strong><br>
+              <small>${l.location} | ${l.price?.toLocaleString()} UGX</small><br>
+              <small>ID: ${l.id}</small>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <button class="toggle-btn ${l.featured ? 'on' : 'off'}" 
+                      onclick="toggleField('${l.id}', 'featured', ${!l.featured})">
+                ${l.featured ? '⭐ Featured' : '★ Feature'}
+              </button>
+              <button class="toggle-btn ${l.verified ? 'on' : 'off'}" 
+                      onclick="toggleField('${l.id}', 'verified', ${!l.verified})">
+                ${l.verified ? '✅ Verified' : '✓ Verify'}
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        container.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+      }
+    }
+
+    window.toggleField = async (listingId, field, newValue) => {
+      try {
+        const ref = doc(db, 'listings', listingId);
+        await updateDoc(ref, { [field]: newValue });
+        loadAdminListings();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    };
+
+    // Initial state
+    window.addEventListener('DOMContentLoaded', () => {
+      debug('Page loaded. Firebase ready.');
+    });
+  </script>
+</head>
 <body>
   <nav id="navbar">
     <div class="nav-container">
@@ -12,12 +169,12 @@
     </div>
   </nav>
   <main>
-    <div id="debug-info" style="background:#fffbcc; padding:0.5rem; border-radius:4px; margin-bottom:1rem;"></div>
+    <div id="debug-info"></div>
 
-    <!-- Login section (shown when not admin) -->
+    <!-- Login section -->
     <div id="login-section" style="display:block; max-width:400px; margin:0 auto;">
       <h2>Admin Login</h2>
-      <div class="form-group"><label>Email</label><input type="email" id="admin-email" value="" placeholder="your@email.com"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="admin-email" value="kizitofahad665@gmail.com" placeholder="your@email.com"></div>
       <div class="form-group"><label>Password</label><input type="password" id="admin-password"></div>
       <button class="primary" onclick="adminLogin()">Login as Admin</button>
       <p style="margin-top:1rem; font-size:0.9rem;">
@@ -25,12 +182,11 @@
       </p>
     </div>
 
-    <!-- Admin panel (shown only after authorization) -->
+    <!-- Admin panel (hidden until authorized) -->
     <div id="admin-panel" style="display:none;">
       <h2>Manage Listings</h2>
       <div id="listing-list">Loading...</div>
     </div>
   </main>
-
-  <script type="module" src="admin.js"></script>
 </body>
+</html>
