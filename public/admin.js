@@ -5,8 +5,18 @@ import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/
 const ADMIN_EMAIL = 'kizitofahad665@gmail.com';  // change to your email
 
 onAuthStateChanged(window.auth, async (user) => {
+  const container = document.getElementById('listing-list');
+  
+  // Show the current user email for debugging
+  if (user) {
+    const debugLine = document.createElement('p');
+    debugLine.textContent = `Logged in as: ${user.email} (Admin required: ${ADMIN_EMAIL})`;
+    debugLine.style.cssText = 'background:#fffbcc; padding:0.5rem; border-radius:4px;';
+    container.parentNode.insertBefore(debugLine, container);
+  }
+
   if (!user || user.email !== ADMIN_EMAIL) {
-    document.getElementById('listing-list').innerHTML = '<p class="error">Access denied. Only admin can view this page.</p>';
+    container.innerHTML = '<p class="error">Access denied. Only admin can view this page.</p>';
     return;
   }
   await loadAdminListings();
