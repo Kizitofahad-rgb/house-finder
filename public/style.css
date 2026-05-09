@@ -1,10 +1,5 @@
 /* === Modern Reset & Gradient Background === */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+* { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
   background: linear-gradient(135deg, #11998e, #38ef7d, #36d1dc, #5b86e5);
@@ -14,226 +9,156 @@ body {
   line-height: 1.6;
   min-height: 100vh;
 }
-
 @keyframes gradientBG {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-/* Navigation */
+/* --- Dark Glass Navbar --- */
 nav {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  background: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
   padding: 0.8rem 2rem;
   position: sticky;
   top: 0;
   z-index: 100;
 }
-.nav-container {
-  max-width: 1200px;
-  margin: auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.nav-container { max-width:1200px; margin:auto; display:flex; justify-content:space-between; align-items:center; }
 .logo {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: #11998e;
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 1.5rem; font-weight: 700; color: #ffffff;
+  text-shadow: 0 0 8px rgba(255,255,255,0.3);
   letter-spacing: -0.5px;
 }
+.logo-icon { width:28px; height:28px; color:#fff; filter:drop-shadow(0 0 4px rgba(255,255,255,0.4)); }
 nav button {
-  background: transparent;
-  border: none;
-  color: #2d3436;
-  padding: 0.6rem 1.2rem;
-  margin-left: 0.3rem;
+  background: rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.15);
+  color:#f0f0f0; padding:0.6rem 1.2rem; margin-left:0.3rem;
+  cursor:pointer; border-radius:50px; font-weight:500;
+  transition:all 0.2s;
+}
+nav button:hover { background: rgba(255,255,255,0.25); color:#fff; transform:translateY(-1px); }
+
+/* Main */
+main { max-width:1100px; margin:2rem auto; padding:0 1rem; min-height:70vh; }
+footer { text-align:center; padding:1.5rem; color:#fff; background:rgba(30,30,30,0.7); backdrop-filter:blur(5px); margin-top:2rem; }
+
+/* Forms etc (keep existing) */
+.form-group { margin-bottom:1.2rem; }
+label { display:block; margin-bottom:0.3rem; font-weight:600; color:#2d3436; }
+input, select, textarea {
+  width:100%; padding:0.75rem; border:1px solid #ddd; border-radius:8px;
+  font-size:1rem; transition:border 0.2s; background:white;
+}
+input:focus, select:focus, textarea:focus { border-color:#11998e; outline:none; box-shadow:0 0 0 3px rgba(17,153,142,0.2); }
+button.primary { background:linear-gradient(135deg,#11998e,#38ef7d); color:white; border:none; padding:0.8rem 1.8rem; border-radius:50px; font-weight:600; cursor:pointer; }
+button.primary:hover { opacity:0.9; }
+button.secondary { background:#fff; border:1px solid #ddd; padding:0.7rem 1.5rem; border-radius:50px; cursor:pointer; }
+
+.search-area { display:flex; gap:0.8rem; margin-bottom:2rem; flex-wrap:wrap; }
+.search-area input { flex:1; min-width:200px; }
+.search-area button { background:linear-gradient(135deg,#11998e,#38ef7d); color:white; border:none; padding:0.75rem 1.5rem; border-radius:8px; font-weight:600; }
+
+/* Grid */
+.listings-grid, #listings-container, #my-listings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Card */
+.listing-card {
+  background: white; border-radius:12px; overflow:hidden;
+  box-shadow:0 4px 12px rgba(0,0,0,0.1);
+  transition:transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+.listing-card:hover { transform:translateY(-4px); box-shadow:0 8px 20px rgba(0,0,0,0.15); }
+.listing-card.featured {
+  border: 2px solid #f39c12;
+  box-shadow: 0 0 15px rgba(243,156,18,0.3);
+}
+.listing-card img {
+  width:100%; height:140px; object-fit:cover; background:#f0f0f0;
+}
+.card-body { padding:0.8rem; }
+.listing-card h3 { font-size:0.95rem; margin-bottom:0.2rem; color:#2d3436; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.listing-card p { font-size:0.8rem; color:#636e72; margin-bottom:0.2rem; }
+.listing-card .price { font-size:1.1rem; font-weight:700; color:#11998e; }
+.listing-card .views { font-size:0.75rem; color:#e67e22; margin-bottom:0.2rem; }
+
+/* Badges */
+.badge-group { position:absolute; top:10px; left:10px; display:flex; gap:5px; }
+.badge {
+  padding:0.2rem 0.5rem; border-radius:6px; font-size:0.7rem; font-weight:600;
+  color:white; text-transform:uppercase;
+}
+.badge-featured { background:#f39c12; }
+.badge-verified { background:#27ae60; }
+
+/* WhatsApp button */
+.wa-btn {
+  display:inline-block; background:#25D366; color:white; padding:0.4rem 0.8rem;
+  border-radius:6px; text-decoration:none; font-size:0.85rem;
+  transition:background 0.2s;
+}
+.wa-btn:hover { background:#128C7E; }
+.card-actions { margin-top:0.3rem; }
+
+/* Dashboard specific */
+.dashboard-stats { background:white; padding:0.8rem; border-radius:8px; margin-bottom:1rem; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+.upgrade-message { background:#fff3cd; padding:1rem; border-radius:8px; margin-bottom:1rem; }
+.dashboard-form { background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:2rem; }
+.image-preview { display:flex; gap:0.5rem; margin-top:0.5rem; flex-wrap:wrap; }
+.image-preview img { width:70px; height:70px; object-fit:cover; border-radius:8px; }
+
+/* Auth */
+.auth-form { max-width:450px; margin:2rem auto; background:white; padding:2rem; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.08); }
+.auth-form h2 { margin-bottom:1.5rem; color:#11998e; }
+.error { color:#e74c3c; font-size:0.9rem; }
+.success { color:#27ae60; }
+
+/* Category Pills */
+.category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+.cat-pill {
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
   cursor: pointer;
-  border-radius: 50px;
   font-weight: 500;
   transition: all 0.2s;
 }
-nav button:hover {
-  background: #e8f0fe;
-  color: #11998e;
+.cat-pill:hover {
+  background: rgba(255,255,255,0.4);
 }
-
-/* Main content card */
-main {
-  max-width: 1100px;
-  margin: 2rem auto;
-  padding: 0 1rem;
-  min-height: 70vh;
-}
-
-/* Footer */
-footer {
-  text-align: center;
-  padding: 1.5rem;
-  color: #636e72;
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(5px);
-  margin-top: 2rem;
-}
-
-/* Forms */
-.form-group {
-  margin-bottom: 1.2rem;
-}
-label {
-  display: block;
-  margin-bottom: 0.3rem;
-  font-weight: 600;
-  color: #2d3436;
-}
-input, select, textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #dddddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border 0.2s;
+.cat-pill.active {
   background: white;
-}
-input:focus, select:focus, textarea:focus {
-  border-color: #11998e;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(17,153,142,0.2);
-}
-button.primary {
-  background: linear-gradient(135deg, #11998e, #38ef7d);
-  color: white;
-  border: none;
-  padding: 0.8rem 1.8rem;
-  border-radius: 50px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-button.primary:hover {
-  opacity: 0.9;
-}
-button.secondary {
-  background: #fff;
-  border: 1px solid #ddd;
-  padding: 0.7rem 1.5rem;
-  border-radius: 50px;
-  cursor: pointer;
-}
-
-/* Search area */
-.search-area {
-  display: flex;
-  gap: 0.8rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-}
-.search-area input {
-  flex: 1;
-  min-width: 200px;
-}
-.search-area button {
-  background: linear-gradient(135deg, #11998e, #38ef7d);
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-/* Listing cards – shopping style, small images */
-.listings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
-}
-.listing-card {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.listing-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-}
-.listing-card img {
-  width: 100%;
-  height: 140px;          /* small, fixed height */
-  object-fit: cover;
-  background: #f0f0f0;
-}
-.listing-card .card-body {
-  padding: 0.8rem;
-}
-.listing-card h3 {
-  font-size: 0.95rem;
-  margin-bottom: 0.2rem;
-  color: #2d3436;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.listing-card p {
-  font-size: 0.8rem;
-  color: #636e72;
-  margin-bottom: 0.2rem;
-}
-.listing-card .price {
-  font-size: 1.1rem;
+  color: #2d89ef;
+  border-color: white;
   font-weight: 700;
-  color: #11998e;
 }
 
-/* Dashboard cards – same small image style */
-.dashboard-form {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  margin-bottom: 2rem;
-}
-.image-preview {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-  flex-wrap: wrap;
-}
-.image-preview img {
-  width: 70px;
-  height: 70px;
-  object-fit: cover;
-  border-radius: 8px;
-}
-
-/* Auth forms */
-.auth-form {
-  max-width: 450px;
-  margin: 2rem auto;
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-}
-.auth-form h2 {
-  margin-bottom: 1.5rem;
-  color: #11998e;
-}
-
-.error { color: #e74c3c; font-size: 0.9rem; }
-.success { color: #27ae60; }
-
-/* Remove default list styling for listings container (we'll keep the old ID but we'll update the HTML to use grid) */
-#listings-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
-}
-#my-listings {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
+/* Category badge on cards */
+.category-badge {
+  display: inline-block;
+  background: #f0f0f0;
+  color: #555;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin: 0.2rem 0 0.3rem;
 }

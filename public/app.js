@@ -4,6 +4,21 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 window.currentSection = 'home';
+window.currentCategoryFilter = '';                // NEW
+
+window.filterByCategory = (cat) => {
+  window.currentCategoryFilter = cat;
+  // update active pill style
+  document.querySelectorAll('.cat-pill').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = Array.from(document.querySelectorAll('.cat-pill')).find(
+    btn => btn.textContent.toLowerCase().includes(cat) || (cat === '' && btn.textContent === 'All')
+  );
+  if (activeBtn) activeBtn.classList.add('active');
+  // reload listings with the category filter
+  const location = document.getElementById('searchLocation')?.value || '';
+  const maxPrice = document.getElementById('maxPrice')?.value || '';
+  loadListings(location, maxPrice);
+};
 
 // --------------------------------------------------------------
 //  CONFIG – CHANGE THESE TO YOUR REAL NUMBERS / DETAILS
@@ -33,15 +48,27 @@ window.showSection = async (section) => {
 // ==============================================================
 async function getHomeHTML() {
   return `
-    <h2 style="margin-bottom:1.5rem;">Find Your Next Home</h2>
-    <div class="search-area">
+    <h2 style="margin-bottom:0.5rem;">Find Your Next Home</h2>
+    <div class="category-pills" id="category-pills">
+      <button class="cat-pill active" onclick="filterByCategory('')">All</button>
+      <button class="cat-pill" onclick="filterByCategory('apt_furnished')">Furnished Apartments</button>
+      <button class="cat-pill" onclick="filterByCategory('apt_unfurnished')">Unfurnished Apartments</button>
+      <button class="cat-pill" onclick="filterByCategory('single_room')">Single Rooms</button>
+      <button class="cat-pill" onclick="filterByCategory('house')">Houses</button>
+      <button class="cat-pill" onclick="filterByCategory('hostel')">Hostels</button>
+      <button class="cat-pill" onclick="filterByCategory('commercial')">Commercial</button>
+      <button class="cat-pill" onclick="filterByCategory('land')">Land</button>
+    </div>
+    <div class="search-area" style="margin-top:1rem;">
       <input type="text" id="searchLocation" placeholder="Location (e.g., Makindye)">
       <input type="number" id="maxPrice" placeholder="Max price (UGX/month)">
       <button onclick="searchListings()">Search</button>
     </div>
     <div id="listings-container" class="listings-grid">Loading...</div>
   `;
-  setTimeout(() => loadListings(''), 100);
+  // initial load (no category filter)
+  window.currentCategoryFilter = '';
+  setTimeout(() => loadListings('', ''), 100);
 }
 
 async function loadListings(locationFilter = '', maxPriceFilter = '') {
@@ -168,7 +195,7 @@ function getSignupHTML() {
 async function getDashboardHTML() {
   const user = window.auth.currentUser;
   if (!user) return '<p>Please login first.</p>';
-  
+
   const userDoc = await getDoc(doc(window.db, 'users', user.uid));
   if (!userDoc.exists() || userDoc.data().role !== 'landlord') {
     return '<p class="error">Access denied. Only landlords can view this page.</p>';
@@ -196,6 +223,17 @@ async function getDashboardHTML() {
       <h3>New Listing</h3>
       <div class="form-group"><label>Title</label><input id="new-title" placeholder="e.g., Cozy 2BR in Central Division"></div>
       <div class="form-group"><label>Location</label><input id="new-location" placeholder="e.g., Makindye"></div>
+      <div class="form-group"><label>Category</label>
+        <select id="new-category">
+          <option value="apt_furnished">Apartment – Furnished</option>
+          <option value="apt_unfurnished">Apartment – Unfurnished</option>
+          <option value="single_room">Single Room</option>
+          <option value="house">Full House</option>
+          <option value="hostel">Hostel / Boarding</option>
+          <option value="commercial">Commercial / Office Space</option>
+          <option value="land">Land for Rent</option>
+        </select>
+      </div>
       <div class="form-group"><label>Bedrooms</label><input id="new-bedrooms" type="number" value="1"></div>
       <div class="form-group"><label>Price (UGX/month)</label><input id="new-price" type="number" value="500000"></div>
       <div class="form-group"><label>Contact Email</label><input id="new-contact" type="email"></div>
@@ -214,23 +252,6 @@ async function getDashboardHTML() {
   `;
 }
 
-window.showAddListingForm = () => {
-  document.getElementById('add-listing-form').style.display = 'block';
-  const fileInput = document.getElementById('new-images');
-  fileInput.addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
-    const preview = document.getElementById('image-preview');
-    preview.innerHTML = '';
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        preview.innerHTML += `<img src="${e.target.result}" alt="preview">`;
-      };
-      reader.readAsDataURL(file);
-    });
-  });
-};
-
 window.addListing = async () => {
   const user = window.auth.currentUser;
   if (!user) {
@@ -238,7 +259,7 @@ window.addListing = async () => {
     return;
   }
 
-  // Check limits again
+  // Check limits
   const userDoc = await getDoc(doc(window.db, 'users', user.uid));
   const userData = userDoc.data();
   const listingCount = userData.listingCount || 0;
@@ -250,6 +271,7 @@ window.addListing = async () => {
 
   const title = document.getElementById('new-title').value.trim();
   const location = document.getElementById('new-location').value.trim();
+  const category = document.getElementById('new-category').value;   // NEW
   const bedrooms = parseInt(document.getElementById('new-bedrooms').value);
   const price = parseInt(document.getElementById('new-price').value);
   const contactEmail = document.getElementById('new-contact').value.trim();
@@ -302,17 +324,17 @@ window.addListing = async () => {
   try {
     await addDoc(collection(window.db, 'listings'), {
       landlordId: user.uid,
-      title, location, bedrooms, price, contactEmail, landlordWhatsApp,
+      title, location, category,         // category added
+      bedrooms, price, contactEmail, landlordWhatsApp,
       description,
       images: imageURLs,
       active: true,
-      featured: false,    // default not featured
-      verified: false,    // default not verified (you'll manually toggle)
+      featured: false,
+      verified: false,
       views: 0,
       createdAt: new Date()
     });
 
-    // Increment user’s listing count
     await updateDoc(doc(window.db, 'users', user.uid), {
       listingCount: increment(1)
     });
@@ -349,29 +371,31 @@ async function loadMyListings() {
       return;
     }
     container.innerHTML = listings.map(l => `
-      <div class="listing-card ${l.featured ? 'featured' : ''}">
-        ${l.images && l.images.length > 0
-          ? `<img src="${l.images[0]}" alt="${l.title}">`
-          : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-              <span style="color:#b2bec3;">No Image</span></div>`}
-        <div class="card-body">
-          <div class="badge-group">
-            ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
-            ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
-          </div>
-          <h3>${l.title} - ${l.location}</h3>
-          <p>Bedrooms: ${l.bedrooms} | Price: ${l.price.toLocaleString()} UGX</p>
-          <p>Status: ${l.active ? '✅ Active' : '⛔ Inactive'}</p>
-          <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
-            ${l.active ? 'Deactivate' : 'Activate'}
-          </button>
-          <!-- Feature request button (for landlord) -->
-          ${!l.featured ? `
-            <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to make my listing featured: ${l.title} (${l.id})" target="_blank" class="wa-btn" style="padding:0.3rem 0.6rem; font-size:0.8rem;">⭐ Get Featured</a>
-          ` : ''}
-        </div>
+  <div class="listing-card ${l.featured ? 'featured' : ''}">
+    ${l.images && l.images.length > 0
+      ? `<img src="${l.images[0]}" alt="${l.title}">`
+      : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+          <span style="color:#b2bec3;">No Image</span></div>`}
+    <div class="card-body">
+      <div class="badge-group">
+        ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
+        ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
       </div>
-    `).join('');
+      <span class="category-badge">${formatCategory(l.category)}</span>   <!-- NEW -->
+      <h3>${l.title} - ${l.bedrooms} Bd</h3>
+      <p><strong>📍</strong> ${l.location}</p>
+      <p class="price">${l.price.toLocaleString()} UGX/month</p>
+      <p class="views">🔥 ${l.views || 0} views</p>
+      <div class="card-actions">
+        ${l.landlordWhatsApp ? 
+          `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title)}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
+          : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
+        }
+      </div>
+      <p style="font-size:0.8rem; margin-top:0.5rem;">${l.description || ''}</p>
+    </div>
+  </div>
+`).join('');
   } catch (error) {
     container.innerHTML = `<p class="error">Error loading your listings: ${error.message}</p>`;
   }
@@ -389,3 +413,16 @@ window.toggleListing = async (id, newStatus) => {
 // (No changes needed)
 
 showSection('home');
+
+function formatCategory(slug) {
+  const map = {
+    apt_furnished: 'Furnished Apt',
+    apt_unfurnished: 'Unfurnished Apt',
+    single_room: 'Single Room',
+    house: 'Full House',
+    hostel: 'Hostel',
+    commercial: 'Commercial',
+    land: 'Land'
+  };
+  return map[slug] || slug;
+}

@@ -27,21 +27,30 @@
   </script>
 </head>
 <body>
-  <nav id="navbar">
-    <h1>🏠 House Finder</h1>
-    <div id="nav-links">
-      <span id="guest-links">
-        <button onclick="showSection('home')">Home</button>
-        <button onclick="showSection('login')">Login</button>
-        <button onclick="showSection('signup')">Sign Up</button>
-      </span>
-      <span id="user-links" style="display:none;">
-        <button onclick="showSection('home')">Home</button>
-        <button id="dashboard-btn" onclick="showSection('dashboard')">Dashboard</button>
-        <button onclick="logout()">Logout</button>
-      </span>
+<nav id="navbar">
+    <div class="nav-container">
+      <div class="logo">
+        <!-- Inline SVG house icon -->
+        <svg class="logo-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 10.5L12 3l9 7.5V21H3V10.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M9 21V12h6v9" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <span>HouseFinder</span>
+      </div>
+      <div id="nav-links">
+        <span id="guest-links">
+          <button onclick="showSection('home')">Home</button>
+          <button onclick="showSection('login')">Login</button>
+          <button onclick="showSection('signup')">Sign Up</button>
+        </span>
+        <span id="user-links" style="display:none;">
+          <button onclick="showSection('home')">Home</button>
+          <button id="dashboard-btn" onclick="showSection('dashboard')">Dashboard</button>
+          <button onclick="logout()">Logout</button>
+        </span>
+      </div>
     </div>
-  </nav>
+</nav>
 
   <main id="app">
     <!-- Sections will be injected here -->
