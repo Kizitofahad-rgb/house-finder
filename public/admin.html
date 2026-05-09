@@ -1,61 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin – HouseFinder</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    /* minor overrides for admin */
-    .admin-card {
-      background: white;
-      border-radius: 12px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    .toggle-group {
-      display: flex;
-      gap: 1rem;
-    }
-    .toggle-btn {
-      padding: 0.4rem 1rem;
-      border: none;
-      border-radius: 20px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.8rem;
-    }
-    .toggle-btn.on {
-      background: #27ae60;
-      color: white;
-    }
-    .toggle-btn.off {
-      background: #e74c3c;
-      color: white;
-    }
-  </style>
-  <!-- Firebase SDKs (same config as your main app) -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    const firebaseConfig = {
-      apiKey: "AIzaSyB8qsb73uXtbFugGSYb9v0TCzusiORvn3s",
-      authDomain: "studio-6076456451-c38fd.firebaseapp.com",
-      projectId: "studio-6076456451-c38fd",
-      storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
-      messagingSenderId: "657925779778",
-      appId: "1:657925779778:web:a82c2feb24e364d4aa18db"
-    };
-    const app = initializeApp(firebaseConfig);
-    window.auth = getAuth(app);
-    window.db = getFirestore(app);
-  </script>
-</head>
 <body>
   <nav id="navbar">
     <div class="nav-container">
@@ -69,11 +11,26 @@
       <button onclick="logout()">Logout</button>
     </div>
   </nav>
-  <main id="admin-container">
-    <h2>Manage Listings</h2>
-    <div id="listing-list">Loading... (ensure you're logged in as your admin email)</div>
+  <main>
+    <div id="debug-info" style="background:#fffbcc; padding:0.5rem; border-radius:4px; margin-bottom:1rem;"></div>
+
+    <!-- Login section (shown when not admin) -->
+    <div id="login-section" style="display:block; max-width:400px; margin:0 auto;">
+      <h2>Admin Login</h2>
+      <div class="form-group"><label>Email</label><input type="email" id="admin-email" value="" placeholder="your@email.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="admin-password"></div>
+      <button class="primary" onclick="adminLogin()">Login as Admin</button>
+      <p style="margin-top:1rem; font-size:0.9rem;">
+        <a href="index.html" target="_blank">Go to main site to sign up / login first</a>
+      </p>
+    </div>
+
+    <!-- Admin panel (shown only after authorization) -->
+    <div id="admin-panel" style="display:none;">
+      <h2>Manage Listings</h2>
+      <div id="listing-list">Loading...</div>
+    </div>
   </main>
 
   <script type="module" src="admin.js"></script>
 </body>
-</html>
