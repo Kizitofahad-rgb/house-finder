@@ -252,6 +252,24 @@ async function getDashboardHTML() {
   `;
 }
 
+window.showAddListingForm = () => {
+  document.getElementById('add-listing-form').style.display = 'block';
+  const fileInput = document.getElementById('new-images');
+  fileInput.addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    const preview = document.getElementById('image-preview');
+    preview.innerHTML = '';
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        preview.innerHTML += `<img src="${e.target.result}" alt="preview">`;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+};
+
+
 window.addListing = async () => {
   const user = window.auth.currentUser;
   if (!user) {
