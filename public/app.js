@@ -389,31 +389,28 @@ async function loadMyListings() {
       return;
     }
     container.innerHTML = listings.map(l => `
-  <div class="listing-card ${l.featured ? 'featured' : ''}">
-    ${l.images && l.images.length > 0
-      ? `<img src="${l.images[0]}" alt="${l.title}">`
-      : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-          <span style="color:#b2bec3;">No Image</span></div>`}
-    <div class="card-body">
-      <div class="badge-group">
-        ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
-        ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+      <div class="listing-card ${l.featured ? 'featured' : ''}">
+        ${l.images && l.images.length > 0
+          ? `<img src="${l.images[0]}" alt="${l.title}">`
+          : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+              <span style="color:#b2bec3;">No Image</span></div>`}
+        <div class="card-body">
+          <div class="badge-group">
+            ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
+            ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+          </div>
+          <span class="category-badge">${formatCategory(l.category)}</span>
+          <h3>${l.title} - ${l.bedrooms} Bd</h3>
+          <p><strong>📍</strong> ${l.location}</p>
+          <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
+          <p class="views">🔥 ${l.views || 0} views</p>
+          <p>Status: ${l.active ? '✅ Available' : '🏠 Rented'}</p>
+          <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
+            ${l.active ? 'Mark as Rented' : 'Mark as Available'}
+          </button>
+        </div>
       </div>
-      <span class="category-badge">${formatCategory(l.category)}</span>   <!-- NEW -->
-      <h3>${l.title} - ${l.bedrooms} Bd</h3>
-      <p><strong>📍</strong> ${l.location}</p>
-      <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
-      <p class="views">🔥 ${l.views || 0} views</p>
-      <div class="card-actions">
-        ${l.landlordWhatsApp ? 
-          `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title)}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
-          : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
-        }
-      </div>
-      <p style="font-size:0.8rem; margin-top:0.5rem;">${l.description || ''}</p>
-    </div>
-  </div>
-`).join('');
+    `).join('');
   } catch (error) {
     container.innerHTML = `<p class="error">Error loading your listings: ${error.message}</p>`;
   }
