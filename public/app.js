@@ -120,7 +120,7 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
           </div>
           <h3>${l.title} - ${l.bedrooms} Bd</h3>
           <p><strong>📍</strong> ${l.location}</p>
-          <p class="price">${l.price.toLocaleString()} UGX/month</p>
+          <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
           <p class="views">🔥 ${l.views || 0} views</p>
           <div class="card-actions">
             ${l.landlordWhatsApp ? 
@@ -384,7 +384,7 @@ async function loadMyListings() {
       <span class="category-badge">${formatCategory(l.category)}</span>   <!-- NEW -->
       <h3>${l.title} - ${l.bedrooms} Bd</h3>
       <p><strong>📍</strong> ${l.location}</p>
-      <p class="price">${l.price.toLocaleString()} UGX/month</p>
+      <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
       <p class="views">🔥 ${l.views || 0} views</p>
       <div class="card-actions">
         ${l.landlordWhatsApp ? 
