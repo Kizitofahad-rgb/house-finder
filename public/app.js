@@ -7,10 +7,10 @@ import {
 window.currentSection = 'home';
 window.currentCategoryFilter = '';
 
-// ---- CONFIG (change these to your real details) ----
-const YOUR_WHATSAPP_NUMBER = '256775989760';  // your WhatsApp number without +
+// ---- CONFIG ----
+const YOUR_WHATSAPP_NUMBER = '256775989760';
 const APP_NAME = 'HouseFinder';
-const ADMIN_EMAIL = 'kizitofahad665@gmail.com'; // used for unlimited listings & admin access
+const ADMIN_EMAIL = 'kizitofahad665@gmail.com';
 
 // ---- ROUTER ----
 window.showSection = async (section) => {
@@ -49,7 +49,6 @@ async function getHomeHTML() {
     </div>
     <div id="listings-container" class="listings-grid">Loading...</div>
   `;
-  // Wait a tiny bit for the container to exist, then load
   const tryLoad = () => {
     if (document.getElementById('listings-container')) {
       loadListings('', '');
@@ -65,7 +64,6 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
   const container = document.getElementById('listings-container');
   if (!container) return;
 
-  // Firestore query: active == true, featured on top, newest first
   let q = query(
     collection(window.db, 'listings'),
     where('active', '==', true),
@@ -77,7 +75,6 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
     const snapshot = await getDocs(q);
     let listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Client-side filters
     const catFilter = window.currentCategoryFilter || '';
     if (catFilter) {
       listings = listings.filter(l => l.category === catFilter);
@@ -97,10 +94,13 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
 
     container.innerHTML = listings.map(l => `
       <div class="listing-card ${l.featured ? 'featured' : ''}">
-        ${l.images && l.images.length > 0
-          ? `<img src="${l.images[0]}" alt="${l.title}">`
-          : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-              <span style="color:#b2bec3;">No Image</span></div>`}
+        <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
+          ${l.images && l.images.length > 0
+            ? `<img src="${l.images[0]}" alt="${l.title}">`
+            : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+                <span style="color:#b2bec3;">No Image</span></div>`}
+          ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
+        </div>
         <div class="card-body">
           <div class="badge-group">
             ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
@@ -112,17 +112,16 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
           <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
           <p class="views">🔥 ${l.views || 0} views</p>
           <div class="card-actions">
+            <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
             ${l.landlordWhatsApp ? 
-              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
+              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat</a>`
               : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
             }
           </div>
-          <p style="font-size:0.8rem; margin-top:0.5rem;">${l.description || ''}</p>
         </div>
       </div>
     `).join('');
 
-    // Increment view counts in background
     incrementViews(listings.map(l => l.id));
   } catch (error) {
     container.innerHTML = `<p class="error">Error loading listings: ${error.message}</p>`;
@@ -133,23 +132,17 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
 async function incrementViews(listingIds) {
   for (const id of listingIds) {
     const ref = doc(window.db, 'listings', id);
-    try {
-      await updateDoc(ref, { views: increment(1) });
-    } catch (e) {
-      // ignore
-    }
+    try { await updateDoc(ref, { views: increment(1) }); } catch (e) {}
   }
 }
 
 window.filterByCategory = (cat) => {
   window.currentCategoryFilter = cat;
-  // Update active pill
   document.querySelectorAll('.cat-pill').forEach(btn => btn.classList.remove('active'));
   const activeBtn = Array.from(document.querySelectorAll('.cat-pill')).find(
     btn => (cat === '' && btn.textContent.trim() === 'All') || btn.textContent.toLowerCase().includes(cat)
   );
   if (activeBtn) activeBtn.classList.add('active');
-  // Reload listings with current search fields
   const location = document.getElementById('searchLocation')?.value || '';
   const maxPrice = document.getElementById('maxPrice')?.value || '';
   loadListings(location, maxPrice);
@@ -161,7 +154,7 @@ window.searchListings = () => {
   loadListings(location, maxPrice);
 };
 
-// ================= AUTH FORMS =================
+// ================= AUTH FORMS (no change) =================
 function getLoginHTML() {
   return `
     <div class="auth-form">
@@ -273,12 +266,8 @@ window.showAddListingForm = () => {
 
 window.addListing = async () => {
   const user = window.auth.currentUser;
-  if (!user) {
-    alert('You must be logged in.');
-    return;
-  }
+  if (!user) { alert('You must be logged in.'); return; }
 
-  // Limit check (admin bypass)
   const userDoc = await getDoc(doc(window.db, 'users', user.uid));
   const userData = userDoc.data();
   const listingCount = userData.listingCount || 0;
@@ -299,19 +288,11 @@ window.addListing = async () => {
   const description = document.getElementById('new-description').value.trim();
   const imageFiles = document.getElementById('new-images').files;
 
-  if (!title || !location) {
-    alert('Title and location are required.');
-    return;
-  }
+  if (!title || !location) { alert('Title and location are required.'); return; }
 
-  // Disable button to prevent double submission
   const submitBtn = document.querySelector('#add-listing-form button.primary');
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading…';
-  }
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading…'; }
 
-  // Upload images to Cloudinary via Vercel endpoint
   let imageURLs = [];
   try {
     if (imageFiles.length > 0) {
@@ -327,15 +308,9 @@ window.addListing = async () => {
                 body: JSON.stringify({ data: e.target.result })
               });
               const data = await response.json();
-              if (data.url) {
-                imageURLs.push(data.url);
-                resolve();
-              } else {
-                reject(new Error(data.error || 'Upload failed'));
-              }
-            } catch (err) {
-              reject(err);
-            }
+              if (data.url) { imageURLs.push(data.url); resolve(); }
+              else { reject(new Error(data.error || 'Upload failed')); }
+            } catch (err) { reject(err); }
           };
           reader.onerror = () => reject(new Error('Failed to read file'));
           reader.readAsDataURL(file);
@@ -343,7 +318,6 @@ window.addListing = async () => {
       }
     }
 
-    // Save listing to Firestore
     await addDoc(collection(window.db, 'listings'), {
       landlordId: user.uid,
       title, location, category,
@@ -357,34 +331,25 @@ window.addListing = async () => {
       createdAt: new Date()
     });
 
-    // Increment user's listing count
     await updateDoc(doc(window.db, 'users', user.uid), {
       listingCount: increment(1)
     });
 
     document.getElementById('add-listing-form').style.display = 'none';
-    showSection('dashboard');  // refresh dashboard
+    showSection('dashboard');
   } catch (error) {
     alert('Error: ' + error.message);
-    console.error(error);
   } finally {
-    // Re-enable button
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Submit Listing';
-    }
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Listing'; }
   }
 };
 
-// ================= LOAD MY LISTINGS (dashboard) =================
+// ================= LOAD MY LISTINGS =================
 async function loadMyListings() {
   const container = document.getElementById('my-listings');
   if (!container) return;
   const user = window.auth.currentUser;
-  if (!user) {
-    container.innerHTML = '<p>Please log in to see your listings.</p>';
-    return;
-  }
+  if (!user) { container.innerHTML = '<p>Please log in to see your listings.</p>'; return; }
 
   try {
     const q = query(
@@ -400,10 +365,13 @@ async function loadMyListings() {
     }
     container.innerHTML = listings.map(l => `
       <div class="listing-card ${l.featured ? 'featured' : ''}">
-        ${l.images && l.images.length > 0
-          ? `<img src="${l.images[0]}" alt="${l.title}">`
-          : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-              <span style="color:#b2bec3;">No Image</span></div>`}
+        <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
+          ${l.images && l.images.length > 0
+            ? `<img src="${l.images[0]}" alt="${l.title}">`
+            : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+                <span style="color:#b2bec3;">No Image</span></div>`}
+          ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
+        </div>
         <div class="card-body">
           <div class="badge-group">
             ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
@@ -415,9 +383,12 @@ async function loadMyListings() {
           <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
           <p class="views">🔥 ${l.views || 0} views</p>
           <p>Status: ${l.active ? '✅ Available' : '🏠 Rented'}</p>
-          <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
-            ${l.active ? 'Mark as Rented' : 'Mark as Available'}
-          </button>
+          <div class="card-actions">
+            <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
+            <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
+              ${l.active ? 'Mark as Rented' : 'Mark as Available'}
+            </button>
+          </div>
           ${!l.featured ? `
             <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to make my listing featured: ${l.title} (${l.id})" target="_blank" class="wa-btn" style="padding:0.3rem 0.6rem; font-size:0.8rem;">⭐ Get Featured</a>
           ` : ''}
@@ -433,7 +404,95 @@ async function loadMyListings() {
 window.toggleListing = async (id, newStatus) => {
   await updateDoc(doc(window.db, 'listings', id), { active: newStatus });
   loadMyListings();
-  loadListings();  // refresh home listings if visible
+  loadListings();
+};
+
+// ================= DETAIL MODAL (image gallery) =================
+window.openDetailModal = async (listingId) => {
+  // Fetch the listing from Firestore
+  const ref = doc(window.db, 'listings', listingId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const l = snap.data();
+  l.id = listingId; // attach id
+
+  // Build modal HTML
+  let imagesHTML = '';
+  if (l.images && l.images.length > 0) {
+    // We'll create a simple slider
+    imagesHTML = `
+      <div class="modal-image-slider">
+        <button class="slider-btn prev" onclick="changeModalImage(-1)">&#10094;</button>
+        <img id="modal-main-image" src="${l.images[0]}" alt="${l.title}" style="max-height: 70vh; width: 100%; object-fit: contain;">
+        <button class="slider-btn next" onclick="changeModalImage(1)">&#10095;</button>
+        <div class="slider-dots" id="modal-dots">
+          ${l.images.map((_, idx) => `<span class="dot ${idx === 0 ? 'active' : ''}" onclick="setModalImage(${idx})"></span>`).join('')}
+        </div>
+      </div>
+    `;
+    // Store images array on window for the slider
+    window._modalImages = l.images;
+    window._modalIndex = 0;
+  } else {
+    imagesHTML = `<div style="height:200px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">No Image</div>`;
+  }
+
+  const modalHTML = `
+    <div id="listing-modal" class="modal-overlay" onclick="closeModal(event)">
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        ${imagesHTML}
+        <div class="modal-body">
+          <h2>${l.title || 'Untitled'}</h2>
+          <p><strong>📍</strong> ${l.location || 'N/A'}</p>
+          <p><strong>Category:</strong> ${formatCategory(l.category)}</p>
+          <p><strong>Bedrooms:</strong> ${l.bedrooms || 0}</p>
+          <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
+          <p><strong>Views:</strong> ${l.views || 0}</p>
+          <p>${l.description || ''}</p>
+          <div class="modal-actions">
+            ${l.landlordWhatsApp ? 
+              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
+              : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Remove any existing modal
+  const oldModal = document.getElementById('listing-modal');
+  if (oldModal) oldModal.remove();
+  // Append new modal to body
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+};
+
+// Slider functions (global)
+window.changeModalImage = (dir) => {
+  if (!window._modalImages) return;
+  let idx = (window._modalIndex + dir + window._modalImages.length) % window._modalImages.length;
+  setModalImage(idx);
+};
+
+window.setModalImage = (idx) => {
+  if (!window._modalImages || idx < 0 || idx >= window._modalImages.length) return;
+  window._modalIndex = idx;
+  const mainImg = document.getElementById('modal-main-image');
+  if (mainImg) mainImg.src = window._modalImages[idx];
+  // Update dots
+  const dots = document.querySelectorAll('.dot');
+  dots.forEach((dot, i) => dot.classList.toggle('active', i === idx));
+};
+
+window.closeModal = (event) => {
+  // If event is click on overlay, close. Otherwise just close.
+  if (event && event.target !== document.getElementById('listing-modal')) return;
+  const modal = document.getElementById('listing-modal');
+  if (modal) modal.remove();
+  // Clean up
+  window._modalImages = null;
+  window._modalIndex = null;
 };
 
 // ================= HELPERS =================
