@@ -1,34 +1,18 @@
 import {
-  collection, addDoc, getDocs, query, where, orderBy, limit,
+  collection, addDoc, getDocs, query, where, orderBy,
   doc, getDoc, updateDoc, increment
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
+// ---- GLOBAL STATE ----
 window.currentSection = 'home';
-window.currentCategoryFilter = '';                // NEW
+window.currentCategoryFilter = '';
 
-window.filterByCategory = (cat) => {
-  window.currentCategoryFilter = cat;
-  // update active pill style
-  document.querySelectorAll('.cat-pill').forEach(btn => btn.classList.remove('active'));
-  const activeBtn = Array.from(document.querySelectorAll('.cat-pill')).find(
-    btn => btn.textContent.toLowerCase().includes(cat) || (cat === '' && btn.textContent === 'All')
-  );
-  if (activeBtn) activeBtn.classList.add('active');
-  // reload listings with the category filter
-  const location = document.getElementById('searchLocation')?.value || '';
-  const maxPrice = document.getElementById('maxPrice')?.value || '';
-  loadListings(location, maxPrice);
-};
-
-// --------------------------------------------------------------
-//  CONFIG – CHANGE THESE TO YOUR REAL NUMBERS / DETAILS
-// --------------------------------------------------------------
-const YOUR_WHATSAPP_NUMBER = '256775989760';  // e.g., 256712345678 (no +)
+// ---- CONFIG (change these to your real details) ----
+const YOUR_WHATSAPP_NUMBER = '256775989760';  // your WhatsApp number without +
 const APP_NAME = 'HouseFinder';
+const ADMIN_EMAIL = 'kizitofahad665@gmail.com'; // used for unlimited listings & admin access
 
-// --------------------------------------------------------------
-//  ROUTER
-// --------------------------------------------------------------
+// ---- ROUTER ----
 window.showSection = async (section) => {
   window.currentSection = section;
   const app = document.getElementById('app');
@@ -40,14 +24,13 @@ window.showSection = async (section) => {
       app.innerHTML = await getDashboardHTML();
       loadMyListings();
       break;
+    default: break;
   }
 };
 
-// ==============================================================
-//  HOME PAGE
-// ==============================================================
+// ================= HOME PAGE =================
 async function getHomeHTML() {
-  return `
+  const html = `
     <h2 style="margin-bottom:0.5rem;">Find Your Next Home</h2>
     <div class="category-pills" id="category-pills">
       <button class="cat-pill active" onclick="filterByCategory('')">All</button>
@@ -66,16 +49,23 @@ async function getHomeHTML() {
     </div>
     <div id="listings-container" class="listings-grid">Loading...</div>
   `;
-  // initial load (no category filter)
-  window.currentCategoryFilter = '';
-  setTimeout(() => loadListings('', ''), 100);
+  // Wait a tiny bit for the container to exist, then load
+  const tryLoad = () => {
+    if (document.getElementById('listings-container')) {
+      loadListings('', '');
+    } else {
+      setTimeout(tryLoad, 50);
+    }
+  };
+  setTimeout(tryLoad, 150);
+  return html;
 }
 
 async function loadListings(locationFilter = '', maxPriceFilter = '') {
   const container = document.getElementById('listings-container');
   if (!container) return;
 
-  // Query: active == true, ordered by featured desc, then createdAt desc
+  // Firestore query: active == true, featured on top, newest first
   let q = query(
     collection(window.db, 'listings'),
     where('active', '==', true),
@@ -83,27 +73,25 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
     orderBy('createdAt', 'desc')
   );
 
-  if (locationFilter) {
-    // Note: Firestore doesn't support combining > / < with multiple orderBy easily,
-    // so we fetch all and filter client‑side for location (small datasets fine for now)
-    q = query(q);
-  }
-
   try {
     const snapshot = await getDocs(q);
     let listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Client‑side location filter if needed
+    // Client-side filters
+    const catFilter = window.currentCategoryFilter || '';
+    if (catFilter) {
+      listings = listings.filter(l => l.category === catFilter);
+    }
     if (locationFilter) {
       const search = locationFilter.toLowerCase();
-      listings = listings.filter(l => l.location.toLowerCase().includes(search));
+      listings = listings.filter(l => (l.location || '').toLowerCase().includes(search));
     }
     if (maxPriceFilter) {
-      listings = listings.filter(l => l.price <= parseInt(maxPriceFilter));
+      listings = listings.filter(l => l.price != null && l.price <= parseInt(maxPriceFilter));
     }
 
     if (listings.length === 0) {
-      container.innerHTML = '<p>No listings found. Be the first!</p>';
+      container.innerHTML = '<p>No listings found. Try a different filter.</p>';
       return;
     }
 
@@ -118,13 +106,14 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
             ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
             ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
           </div>
-          <h3>${l.title} - ${l.bedrooms} Bd</h3>
-          <p><strong>📍</strong> ${l.location}</p>
+          <span class="category-badge">${formatCategory(l.category)}</span>
+          <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
+          <p><strong>📍</strong> ${l.location || 'N/A'}</p>
           <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
           <p class="views">🔥 ${l.views || 0} views</p>
           <div class="card-actions">
             ${l.landlordWhatsApp ? 
-              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title)}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
+              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
               : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
             }
           </div>
@@ -133,25 +122,38 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
       </div>
     `).join('');
 
-    // Increment view counts for all loaded listings (batched)
+    // Increment view counts in background
     incrementViews(listings.map(l => l.id));
   } catch (error) {
-    container.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+    container.innerHTML = `<p class="error">Error loading listings: ${error.message}</p>`;
+    console.error(error);
   }
 }
 
 async function incrementViews(listingIds) {
-  // Firestore batch writes not available in client SDK, so we loop.
-  // This is fine for a few listings; later you can move to a Cloud Function.
   for (const id of listingIds) {
     const ref = doc(window.db, 'listings', id);
     try {
       await updateDoc(ref, { views: increment(1) });
     } catch (e) {
-      // ignore permission errors if any
+      // ignore
     }
   }
 }
+
+window.filterByCategory = (cat) => {
+  window.currentCategoryFilter = cat;
+  // Update active pill
+  document.querySelectorAll('.cat-pill').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = Array.from(document.querySelectorAll('.cat-pill')).find(
+    btn => (cat === '' && btn.textContent.trim() === 'All') || btn.textContent.toLowerCase().includes(cat)
+  );
+  if (activeBtn) activeBtn.classList.add('active');
+  // Reload listings with current search fields
+  const location = document.getElementById('searchLocation')?.value || '';
+  const maxPrice = document.getElementById('maxPrice')?.value || '';
+  loadListings(location, maxPrice);
+};
 
 window.searchListings = () => {
   const location = document.getElementById('searchLocation')?.value || '';
@@ -159,9 +161,7 @@ window.searchListings = () => {
   loadListings(location, maxPrice);
 };
 
-// ==============================================================
-//  AUTH FORMS (unchanged)
-// ==============================================================
+// ================= AUTH FORMS =================
 function getLoginHTML() {
   return `
     <div class="auth-form">
@@ -172,6 +172,7 @@ function getLoginHTML() {
       <button class="primary" onclick="login(document.getElementById('login-email').value, document.getElementById('login-password').value)">Login</button>
     </div>`;
 }
+
 function getSignupHTML() {
   return `
     <div class="auth-form">
@@ -189,9 +190,7 @@ function getSignupHTML() {
     </div>`;
 }
 
-// ==============================================================
-//  LANDLORD DASHBOARD
-// ==============================================================
+// ================= LANDLORD DASHBOARD =================
 async function getDashboardHTML() {
   const user = window.auth.currentUser;
   if (!user) return '<p>Please login first.</p>';
@@ -204,12 +203,13 @@ async function getDashboardHTML() {
   const userData = userDoc.data();
   const listingCount = userData.listingCount || 0;
   const listingLimit = userData.listingLimit || 2;
-  const canAddListing = listingCount < listingLimit;
+  const isAdmin = (user.email && user.email === ADMIN_EMAIL);
+  const canAddListing = isAdmin || (listingCount < listingLimit);
 
   return `
     <h2>Welcome, Landlord!</h2>
     <div class="dashboard-stats">
-      <p>Your Listings: <strong>${listingCount}</strong> / ${listingLimit} free slots</p>
+      <p>Your Listings: <strong>${listingCount}</strong> / ${isAdmin ? '∞' : listingLimit} free slots${isAdmin ? ' (Admin – unlimited)' : ''}</p>
     </div>
     ${canAddListing ? `
       <button class="primary" onclick="showAddListingForm()">+ Add New Listing</button>
@@ -255,20 +255,21 @@ async function getDashboardHTML() {
 window.showAddListingForm = () => {
   document.getElementById('add-listing-form').style.display = 'block';
   const fileInput = document.getElementById('new-images');
-  fileInput.addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
-    const preview = document.getElementById('image-preview');
-    preview.innerHTML = '';
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        preview.innerHTML += `<img src="${e.target.result}" alt="preview">`;
-      };
-      reader.readAsDataURL(file);
+  if (fileInput) {
+    fileInput.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      const preview = document.getElementById('image-preview');
+      preview.innerHTML = '';
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          preview.innerHTML += `<img src="${e.target.result}" alt="preview">`;
+        };
+        reader.readAsDataURL(file);
+      });
     });
-  });
+  }
 };
-
 
 window.addListing = async () => {
   const user = window.auth.currentUser;
@@ -277,21 +278,22 @@ window.addListing = async () => {
     return;
   }
 
-  // Check limits
+  // Limit check (admin bypass)
   const userDoc = await getDoc(doc(window.db, 'users', user.uid));
   const userData = userDoc.data();
   const listingCount = userData.listingCount || 0;
   const listingLimit = userData.listingLimit || 2;
-  if (listingCount >= listingLimit) {
+  const isAdmin = (user.email && user.email === ADMIN_EMAIL);
+  if (!isAdmin && listingCount >= listingLimit) {
     alert('You have reached your free listing limit. Please upgrade.');
     return;
   }
 
   const title = document.getElementById('new-title').value.trim();
   const location = document.getElementById('new-location').value.trim();
-  const category = document.getElementById('new-category').value;   // NEW
-  const bedrooms = parseInt(document.getElementById('new-bedrooms').value);
-  const price = parseInt(document.getElementById('new-price').value);
+  const category = document.getElementById('new-category').value;
+  const bedrooms = parseInt(document.getElementById('new-bedrooms').value) || 0;
+  const price = parseInt(document.getElementById('new-price').value) || 0;
   const contactEmail = document.getElementById('new-contact').value.trim();
   const landlordWhatsApp = document.getElementById('new-whatsapp').value.trim();
   const description = document.getElementById('new-description').value.trim();
@@ -302,7 +304,14 @@ window.addListing = async () => {
     return;
   }
 
-  // Upload images
+  // Disable button to prevent double submission
+  const submitBtn = document.querySelector('#add-listing-form button.primary');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading…';
+  }
+
+  // Upload images to Cloudinary via Vercel endpoint
   let imageURLs = [];
   try {
     if (imageFiles.length > 0) {
@@ -328,21 +337,16 @@ window.addListing = async () => {
               reject(err);
             }
           };
-          reader.onerror = reject;
+          reader.onerror = () => reject(new Error('Failed to read file'));
           reader.readAsDataURL(file);
         });
       }
     }
-  } catch (uploadError) {
-    alert('Image upload failed: ' + uploadError.message);
-    return;
-  }
 
-  // Save listing
-  try {
+    // Save listing to Firestore
     await addDoc(collection(window.db, 'listings'), {
       landlordId: user.uid,
-      title, location, category,         // category added
+      title, location, category,
       bedrooms, price, contactEmail, landlordWhatsApp,
       description,
       images: imageURLs,
@@ -353,20 +357,26 @@ window.addListing = async () => {
       createdAt: new Date()
     });
 
+    // Increment user's listing count
     await updateDoc(doc(window.db, 'users', user.uid), {
       listingCount: increment(1)
     });
 
     document.getElementById('add-listing-form').style.display = 'none';
-    showSection('dashboard');
+    showSection('dashboard');  // refresh dashboard
   } catch (error) {
-    alert('Error saving listing: ' + error.message);
+    alert('Error: ' + error.message);
+    console.error(error);
+  } finally {
+    // Re-enable button
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Listing';
+    }
   }
 };
 
-// ==============================================================
-//  LOAD MY LISTINGS (dashboard)
-// ==============================================================
+// ================= LOAD MY LISTINGS (dashboard) =================
 async function loadMyListings() {
   const container = document.getElementById('my-listings');
   if (!container) return;
@@ -375,7 +385,7 @@ async function loadMyListings() {
     container.innerHTML = '<p>Please log in to see your listings.</p>';
     return;
   }
-  
+
   try {
     const q = query(
       collection(window.db, 'listings'),
@@ -400,35 +410,33 @@ async function loadMyListings() {
             ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
           </div>
           <span class="category-badge">${formatCategory(l.category)}</span>
-          <h3>${l.title} - ${l.bedrooms} Bd</h3>
-          <p><strong>📍</strong> ${l.location}</p>
+          <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
+          <p><strong>📍</strong> ${l.location || 'N/A'}</p>
           <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
           <p class="views">🔥 ${l.views || 0} views</p>
           <p>Status: ${l.active ? '✅ Available' : '🏠 Rented'}</p>
           <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
             ${l.active ? 'Mark as Rented' : 'Mark as Available'}
           </button>
+          ${!l.featured ? `
+            <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to make my listing featured: ${l.title} (${l.id})" target="_blank" class="wa-btn" style="padding:0.3rem 0.6rem; font-size:0.8rem;">⭐ Get Featured</a>
+          ` : ''}
         </div>
       </div>
     `).join('');
   } catch (error) {
     container.innerHTML = `<p class="error">Error loading your listings: ${error.message}</p>`;
+    console.error(error);
   }
 }
 
 window.toggleListing = async (id, newStatus) => {
   await updateDoc(doc(window.db, 'listings', id), { active: newStatus });
   loadMyListings();
-  loadListings();  // refresh home
+  loadListings();  // refresh home listings if visible
 };
 
-// ==============================================================
-//  HELPERS (image upload endpoint already in fetch)
-// ==============================================================
-// (No changes needed)
-
-showSection('home');
-
+// ================= HELPERS =================
 function formatCategory(slug) {
   const map = {
     apt_furnished: 'Furnished Apt',
@@ -439,5 +447,8 @@ function formatCategory(slug) {
     commercial: 'Commercial',
     land: 'Land'
   };
-  return map[slug] || slug;
+  return map[slug] || slug || 'Other';
 }
+
+// Initial load
+showSection('home');
