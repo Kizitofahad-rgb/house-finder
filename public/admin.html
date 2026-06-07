@@ -3,190 +3,441 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin – HouseFinder</title>
-  <link rel="stylesheet" href="style.css">
+  <title>HouseFinder Uganda — Master Control Panel</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
-    .admin-card {
-      background: white;
-      border-radius: 12px;
-      padding: 1rem;
-      margin-bottom: 1rem;
+    :root {
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --danger: #ef4444;
+      --dark-bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background-color: var(--dark-bg);
+      color: var(--text-main);
+      padding: 2rem 1.5rem;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
     }
-    .toggle-btn {
-      padding: 0.4rem 1rem;
-      border: none;
+
+    h1 { font-size: 1.75rem; font-weight: 700; color: #ffffff; }
+    h2 { font-size: 1.35rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff; }
+
+    .admin-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .badge-admin {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--primary);
+      padding: 0.3rem 0.75rem;
       border-radius: 20px;
+      font-weight: 600;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    button.btn-logout {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 500;
       cursor: pointer;
+      transition: all 0.2s;
+    }
+    button.btn-logout:hover { background: var(--danger); color: white; }
+
+    /* Control Panel Sections Layout */
+    .panel-section {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Modern Responsive Management Tables */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.4);
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 2px solid var(--border);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Form control elements within table */
+    .limit-input-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .limit-input-group input {
+      width: 70px;
+      padding: 0.4rem;
+      background: var(--dark-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: white;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .btn-action {
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
       font-weight: 600;
       font-size: 0.8rem;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s;
     }
-    .toggle-btn.on { background: #27ae60; color: white; }
-    .toggle-btn.off { background: #e74c3c; color: white; }
-    #debug-info { background: #fffbcc; padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .btn-action:hover { opacity: 0.9; }
+    .btn-save { background: var(--primary); color: white; }
+    .btn-unlimited { background: #6366f1; color: white; }
+
+    /* Styled Toggle Switches for Listings management */
+    .toggle-container {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .switch-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      background: var(--dark-bg);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .switch-label input {
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+
+    /* Screen State Interventions */
+    .access-denied-container {
+      text-align: center;
+      padding: 5rem 2rem;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .access-denied-container h2 { color: var(--danger); margin-bottom: 0.5rem; }
+    .access-denied-container p { color: var(--text-muted); margin-bottom: 1.5rem; }
+
+    .loading-spinner {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
   </style>
-  <!-- Firebase SDKs -->
+</head>
+<body>
+
+  <div class="container">
+    <div id="admin-view">
+      <div class="loading-spinner">Validating Master Credentials Security Layer...</div>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, collection, getDocs, query, orderBy, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-   const firebaseConfig = {
-  apiKey: "AIzaSyCIJG-Zz1SUEAOMtvezDuedNolk6VIKcas",
-  authDomain: "studio-6076456451-c38fd.firebaseapp.com",
-  projectId: "studio-6076456451-c38fd",
-  storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
-  messagingSenderId: "657925779778",
-  appId: "1:657925779778:web:a3bee5a08da4c18aaa18db"
-};
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
+    // Guard Constraint Identifiers
     const ADMIN_EMAIL = 'kizitofahad665@gmail.com'.trim();
 
-    function debug(msg) {
-      document.getElementById('debug-info').textContent = msg;
-    }
-
-    window.adminLogin = async () => {
-      const email = document.getElementById('admin-email').value.trim();
-      const password = document.getElementById('admin-password').value;
-      if (!email || !password) {
-        alert('Enter email and password');
-        return;
-      }
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        debug('Login successful. Checking admin rights...');
-      } catch (error) {
-        alert('Login failed: ' + error.message);
-        debug('Error: ' + error.message);
-      }
+    const firebaseConfig = {
+      apiKey: "AIzaSyCIJG-Zz1SUEAOMtvezDuedNolk6VIKcas",
+      authDomain: "studio-6076456451-c38fd.firebaseapp.com",
+      projectId: "studio-6076456451-c38fd",
+      storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
+      messagingSenderId: "657925779778",
+      appId: "1:657925779778:web:a3bee5a08da4c18aaa18db"
     };
 
-    window.logout = async () => {
-      await signOut(auth);
-      document.getElementById('login-section').style.display = 'block';
-      document.getElementById('admin-panel').style.display = 'none';
-      debug('Logged out');
-    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
 
-    onAuthStateChanged(auth, async (user) => {
-      const loginSection = document.getElementById('login-section');
-      const adminPanel = document.getElementById('admin-panel');
-      const listingContainer = document.getElementById('listing-list');
-
-      if (!user) {
-        debug('Not logged in. Please sign in with admin email.');
-        loginSection.style.display = 'block';
-        adminPanel.style.display = 'none';
-        listingContainer.innerHTML = '';
-        return;
+    // Watch Global Authentication State Transitions
+    onAuthStateChanged(auth, (user) => {
+      if (user && user.email === ADMIN_EMAIL) {
+        renderAdminDashboard(user.email);
+      } else {
+        renderAccessDenied();
       }
-
-      const loginMsg = `Logged in as: ${user.email} (Admin required: ${ADMIN_EMAIL})`;
-      debug(loginMsg);
-
-      if (user.email !== ADMIN_EMAIL) {
-        loginSection.style.display = 'block';
-        adminPanel.style.display = 'none';
-        listingContainer.innerHTML = '<p class="error">Access denied. Only admin can view this page.</p>';
-        return;
-      }
-
-      // Admin authorized
-      loginSection.style.display = 'none';
-      adminPanel.style.display = 'block';
-      await loadAdminListings();
     });
 
-    async function loadAdminListings() {
-      const container = document.getElementById('listing-list');
+    // ================= VIEW RENDERING CONTEXTS =================
+    function renderAccessDenied() {
+      document.getElementById('admin-view').innerHTML = `
+        <div class="access-denied-container">
+          <h2>🔒 Access Denied</h2>
+          <p>Your current user profile session details lack administrative scope clearance for this system root branch.</p>
+          <a href="index.html" style="color: #10b981; text-decoration: none; font-weight: 600;">← Return to HouseFinder Home</a>
+        </div>
+      `;
+    }
+
+    async function renderAdminDashboard(email) {
+      document.getElementById('admin-view').innerHTML = `
+        <header>
+          <div>
+            <h1>HouseFinder Controls</h1>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">Automated Property Allocation Registry Pipeline</p>
+          </div>
+          <div class="admin-meta">
+            <span class="badge-admin">Admin Profile: ${email}</span>
+            <button class="btn-logout" onclick="window.adminLogout()">Secure Logout</button>
+          </div>
+        </header>
+
+        <section class="panel-section">
+          <h2>👥 Account Limits & Tiers Directory</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>User Email</th>
+                  <th>Role Type</th>
+                  <th>Active Listings</th>
+                  <th>Listing Limit Cap</th>
+                  <th>Actions Override</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body">
+                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Mapping active user data collections...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h2>🏠 Active System Property Listings</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Property Identity</th>
+                  <th>Location</th>
+                  <th>Price (UGX)</th>
+                  <th>Views</th>
+                  <th>System Status Toggles</th>
+                </tr>
+              </thead>
+              <tbody id="listings-table-body">
+                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Parsing firestore node vectors...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      `;
+
+      // Trigger parallel data population
+      loadUsersCollection();
+      loadListingsCollection();
+    }
+
+    // ================= DATA FETCHERS & DOM WORKERS =================
+    async function loadUsersCollection() {
+      const tbody = document.getElementById('users-table-body');
+      if (!tbody) return;
+
+      try {
+        const snapshot = await getDocs(collection(db, 'users'));
+        if (snapshot.empty) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No platform user objects documented.</td></tr>`;
+          return;
+        }
+
+        let rows = '';
+        snapshot.forEach((userDoc) => {
+          const u = userDoc.data();
+          const uid = userDoc.id;
+          const currentLimit = u.listingLimit !== undefined ? u.listingLimit : 2;
+          const displayLimit = currentLimit >= 9999 ? '∞ Unlimited' : currentLimit;
+          
+          rows += `
+            <tr>
+              <td style="font-weight: 500;">${u.email || 'Anonymous/OAuth'}</td>
+              <td><span style="text-transform: capitalize; font-size: 0.85rem; padding: 2px 6px; background: rgba(255,255,255,0.05); border-radius:4px;">${u.role || 'seeker'}</span></td>
+              <td style="font-weight: 700; color: var(--primary);">${u.listingCount || 0}</td>
+              <td id="limit-label-${uid}" style="font-weight: 600;">${displayLimit}</td>
+              <td>
+                <div class="limit-input-group">
+                  <input type="number" id="input-limit-${uid}" value="${currentLimit >= 9999 ? 10 : currentLimit}" min="0">
+                  <button class="btn-action btn-save" onclick="window.updateUserLimit('${uid}')">Set</button>
+                  <button class="btn-action btn-unlimited" onclick="window.grantUnlimited('${uid}')">Make ∞</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = rows;
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" style="color: var(--danger);">Users fault: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadListingsCollection() {
+      const tbody = document.getElementById('listings-table-body');
+      if (!tbody) return;
+
       try {
         const q = query(collection(db, 'listings'), orderBy('createdAt', 'desc'));
         const snapshot = await getDocs(q);
-        const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (listings.length === 0) {
-          container.innerHTML = '<p>No listings found.</p>';
+        if (snapshot.empty) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No platform listings posted.</td></tr>`;
           return;
         }
-        container.innerHTML = listings.map(l => `
-          <div class="admin-card">
-            <div>
-              <strong>${l.title || 'Untitled'}</strong><br>
-              <small>${l.location} | ${l.price?.toLocaleString()} UGX</small><br>
-              <small>ID: ${l.id}</small>
-            </div>
-            <div style="display:flex; gap:0.5rem;">
-              <button class="toggle-btn ${l.featured ? 'on' : 'off'}" 
-                      onclick="toggleField('${l.id}', 'featured', ${!l.featured})">
-                ${l.featured ? '⭐ Featured' : '★ Feature'}
-              </button>
-              <button class="toggle-btn ${l.verified ? 'on' : 'off'}" 
-                      onclick="toggleField('${l.id}', 'verified', ${!l.verified})">
-                ${l.verified ? '✅ Verified' : '✓ Verify'}
-              </button>
-            </div>
-          </div>
-        `).join('');
-      } catch (error) {
-        container.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+
+        let rows = '';
+        snapshot.forEach((listDoc) => {
+          const l = listDoc.data();
+          const id = listDoc.id;
+          
+          rows += `
+            <tr>
+              <td>
+                <div style="font-weight: 600; color:#ffffff;">${l.title || 'Untitled'}</div>
+                <div style="font-size:0.75rem; color: var(--text-muted);">${id}</div>
+              </td>
+              <td>📍 ${l.location || 'N/A'}</td>
+              <td style="font-weight: 600; color: var(--primary);">${l.price ? l.price.toLocaleString() : '0'}</td>
+              <td>🔥 ${l.views || 0}</td>
+              <td>
+                <div class="toggle-container">
+                  <label class="switch-label">
+                    <input type="checkbox" ${l.featured ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'featured', this.checked)">
+                    ⭐ Featured
+                  </label>
+                  <label class="switch-label">
+                    <input type="checkbox" ${l.verified ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'verified', this.checked)">
+                    ✅ Verified
+                  </label>
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = rows;
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" style="color: var(--danger);">Listings fault: ${err.message}</td></tr>`;
       }
     }
 
-    window.toggleField = async (listingId, field, newValue) => {
+    // ================= ATTACH GLOBAL ACTION HOOKS =================
+    window.updateUserLimit = async (uid) => {
+      const input = document.getElementById(`input-limit-${uid}`);
+      if (!input) return;
+      const newLimit = parseInt(input.value);
+      if (isNaN(newLimit) || newLimit < 0) {
+        alert("Please enter a valid listing metric above 0.");
+        return;
+      }
+
       try {
-        const ref = doc(db, 'listings', listingId);
-        await updateDoc(ref, { [field]: newValue });
-        loadAdminListings();
-      } catch (error) {
-        alert('Error: ' + error.message);
+        await updateDoc(doc(db, 'users', uid), { listingLimit: newLimit });
+        document.getElementById(`limit-label-${uid}`).textContent = newLimit;
+        alert('User profile limits updated successfully.');
+      } catch (err) {
+        alert('Firestore transmission fault: ' + err.message);
       }
     };
 
-    // Initial state
-    window.addEventListener('DOMContentLoaded', () => {
-      debug('Page loaded. Firebase ready.');
-    });
+    window.grantUnlimited = async (uid) => {
+      try {
+        await updateDoc(doc(db, 'users', uid), { listingLimit: 9999 });
+        document.getElementById(`limit-label-${uid}`).textContent = '∞ Unlimited';
+        alert('Unlimited access permissions granted successfully.');
+      } catch (err) {
+        alert('Firestore transmission fault: ' + err.message);
+      }
+    };
+
+    window.toggleListingField = async (id, fieldName, isChecked) => {
+      try {
+        const updatePayload = {};
+        updatePayload[fieldName] = isChecked;
+        await updateDoc(doc(db, 'listings', id), updatePayload);
+        console.log(`Listing metadata vector ${id} modified field: [${fieldName}] -> ${isChecked}`);
+      } catch (err) {
+        alert(`Failed to update field toggle state: ` + err.message);
+      }
+    };
+
+    window.adminLogout = () => {
+      signOut(auth).then(() => { window.location.href = 'index.html'; });
+    };
+
   </script>
-</head>
-<body>
-  <nav id="navbar">
-    <div class="nav-container">
-      <div class="logo">
-        <svg class="logo-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 10.5L12 3l9 7.5V21H3V10.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M9 21V12h6v9" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-        </svg>
-        <span>Admin Panel</span>
-      </div>
-      <button onclick="logout()">Logout</button>
-    </div>
-  </nav>
-  <main>
-    <div id="debug-info"></div>
-
-    <!-- Login section -->
-    <div id="login-section" style="display:block; max-width:400px; margin:0 auto;">
-      <h2>Admin Login</h2>
-      <div class="form-group"><label>Email</label><input type="email" id="admin-email" value="kizitofahad665@gmail.com" placeholder="your@email.com"></div>
-      <div class="form-group"><label>Password</label><input type="password" id="admin-password"></div>
-      <button class="primary" onclick="adminLogin()">Login as Admin</button>
-      <p style="margin-top:1rem; font-size:0.9rem;">
-        <a href="index.html" target="_blank">Go to main site to sign up / login first</a>
-      </p>
-    </div>
-
-    <!-- Admin panel (hidden until authorized) -->
-    <div id="admin-panel" style="display:none;">
-      <h2>Manage Listings</h2>
-      <div id="listing-list">Loading...</div>
-    </div>
-  </main>
 </body>
 </html>

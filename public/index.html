@@ -1,38 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#0070f3">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>House Finder Uganda</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Firebase SDKs -->
+
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    
-    // 🔽 YOUR CORRECTED FIREBASE CONFIG (already fixed commas)
-    const firebaseConfig = {
-  apiKey: "AIzaSyCIJG-Zz1SUEAOMtvezDuedNolk6VIKcas",
-  authDomain: "studio-6076456451-c38fd.firebaseapp.com",
-  projectId: "studio-6076456451-c38fd",
-  storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
-  messagingSenderId: "657925779778",
-  appId: "1:657925779778:web:a3bee5a08da4c18aaa18db"
-};
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
+    // Your active Firebase project configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCIJG-Zz1SUEAOMtvezDuedNolk6VIKcas",
+      authDomain: "studio-6076456451-c38fd.firebaseapp.com",
+      projectId: "studio-6076456451-c38fd",
+      storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
+      messagingSenderId: "657925779778",
+      appId: "1:657925779778:web:a3bee5a08da4c18aaa18db"
+    };
+
+    // Initialize Global References securely before secondary modules load
     const app = initializeApp(firebaseConfig);
-    window.auth = getAuth(app);
     window.db = getFirestore(app);
+    window.auth = getAuth(app);
+
+    // Dynamic Navigation Routing Guard Control
+    const navLinks = document.getElementById('nav-links');
+    onAuthStateChanged(window.auth, async (user) => {
+      const linksContainer = document.getElementById('nav-links');
+      if (!linksContainer) return;
+
+      if (user) {
+        // Safe check for your admin identity string
+        const isAdmin = user.email && user.email.trim() === 'kizitofahad665@gmail.com';
+        
+        linksContainer.innerHTML = `
+          <button onclick="showSection('home')">Home</button>
+          ${isAdmin ? `<button onclick="window.location.href='admin.html'" style="border: 1px solid #10b981; color: #10b981; font-weight:600;">⚙️ Admin Panel</button>` : ''}
+          <button id="dashboard-btn" onclick="showSection('dashboard')">Dashboard</button>
+          <button onclick="window.logout()">Logout</button>
+        `;
+      } else {
+        linksContainer.innerHTML = `
+          <button onclick="showSection('home')">Home</button>
+          <button onclick="showSection('login')">Login</button>
+          <button onclick="showSection('signup')">Sign Up</button>
+        `;
+      }
+
+      // Re-trigger layout engine fallback sync
+      if (window.currentSection === 'dashboard') {
+        showSection('dashboard');
+      }
+    });
+
+    // Global logout handler bridge linked directly to navbar template buttons
+    window.logout = () => {
+      signOut(window.auth).then(() => {
+        window.location.reload();
+      });
+    };
   </script>
 </head>
 <body>
-<nav id="navbar">
+  <nav id="navbar">
     <div class="nav-container">
-      <div class="logo">
-        <!-- Inline SVG house icon -->
+      <div class="logo" onclick="showSection('home')" style="cursor: pointer;">
         <svg class="logo-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M3 10.5L12 3l9 7.5V21H3V10.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
           <path d="M9 21V12h6v9" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -40,49 +77,33 @@
         <span>HouseFinder</span>
       </div>
       <div id="nav-links">
-        <span id="guest-links">
-          <button onclick="showSection('home')">Home</button>
-          <button onclick="showSection('login')">Login</button>
-          <button onclick="showSection('signup')">Sign Up</button>
-        </span>
-        <span id="user-links" style="display:none;">
-          <button onclick="showSection('home')">Home</button>
-          <button id="dashboard-btn" onclick="showSection('dashboard')">Dashboard</button>
-          <button onclick="logout()">Logout</button>
-        </span>
+        <button onclick="showSection('home')">Home</button>
+        <button onclick="showSection('login')">Login</button>
+        <button onclick="showSection('signup')">Sign Up</button>
       </div>
     </div>
-</nav>
+  </nav>
 
   <main id="app">
-    <!-- Sections will be injected here -->
-  </main>
+    </main>
 
-  <script type="module" src="auth.js"></script>
-  <script type="module" src="app.js"></script>
+  <script type="module">
+    // Cache busting guarantees the browser discards old files and runs your updates instantly
+    const version = '?v=' + Date.now();
+    
+    import('./auth.js' + version).then(() => {
+      return import('./app.js' + version);
+    }).catch(err => console.error("Error launching application layers:", err));
+  </script>
+
   <script>
-     if ('serviceWorker' in navigator) {
-       window.addEventListener('load', () => {
-         navigator.serviceWorker.register('/sw.js')
-           .then(reg => console.log('Service Worker registered successfully!', reg.scope))
-           .catch(err => console.error('Service Worker registration failed:', err));
-       });
-     }
-   </script>
-
-   <div id="whatsapp-transition-overlay" class="transition-overlay hidden">
-  <div class="transition-card">
-    <div class="animation-icon">🏠 ✨ 📱</div>
-    <h2>Connecting you to the landlord...</h2>
-    <p class="story-text">
-      We've verified this property so you don't have to walk the streets or pay any fake brokers. 
-      Your hassle-free home search is paying off!
-    </p>
-    <div class="loading-bar-container">
-      <div class="loading-bar-fill"></div>
-    </div>
-    <span class="safe-badge">🛡️ Zero Broker Fees Guaranteed</span>
-  </div>
-</div>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered successfully!', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>

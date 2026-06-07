@@ -1,53 +1,35 @@
-const CACHE_NAME = 'house-finder-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/admin.html',
-  '/style.css',
-  '/app.js',
-  '/auth.js',
-  '/manifest.json'
-];
+const CACHE_NAME = 'housefinder-cache-v2';
 
-// Install Event: Cache core application assets
+// 1. Force the updated service worker to activate immediately without waiting
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('Caching core assets...');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
+  self.skipWaiting();
 });
 
-// Activate Event: Clean up old caches if version changes
+// 2. Clear out all old caches completely on activation
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
+    caches.keys().then((cacheNames) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            console.log('Clearing old cache:', key);
-            return caches.delete(key);
-          }
+        cacheNames.map((cache) => {
+          console.log('Clearing old application cache:', cache);
+          return caches.delete(cache);
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// Fetch Event: Serve assets from cache, fallback to network
+// 3. Network-first strategy to guarantee your local code updates read live
 self.addEventListener('fetch', (event) => {
-  // Only handle local GET requests (skip Cloudinary images/Firebase API calls for now)
-  if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
-    return;
-  }
-
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse; // Return cached asset instantly
-      }
-      return fetch(event.request); // Fallback to network
-    })
+    fetch(event.request)
+      .then((response) => {
+        // If the network works perfectly, return it directly
+        return response;
+      })
+      .catch(() => {
+        // Only look at local fallback caches if you are completely offline
+        return caches.match(event.request);
+      })
   );
 });

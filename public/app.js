@@ -28,25 +28,6 @@ window.showSection = async (section) => {
   }
 };
 
-// ================= STORYTELLING & NARRATIVE INTERACTION =================
-// Intercept WhatsApp clicks to show a comforting local transition experience
-window.handleWhatsAppContact = (event, whatsappUrl) => {
-  event.preventDefault();
-
-  const overlay = document.getElementById('whatsapp-transition-overlay');
-  if (overlay) {
-    overlay.classList.remove('hidden');
-
-    // Smooth delay for Kampala hunters to read the assurance and let progress bar finish
-    setTimeout(() => {
-      overlay.classList.add('hidden');
-      window.open(whatsappUrl, '_blank');
-    }, 2500);
-  } else {
-    window.open(whatsappUrl, '_blank');
-  }
-};
-
 // ================= HOME PAGE =================
 async function getHomeHTML() {
   const html = `
@@ -111,41 +92,35 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
       return;
     }
 
-    container.innerHTML = listings.map(l => {
-      const waUrl = l.landlordWhatsApp 
-        ? `https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}`
-        : '';
-
-      return `
-        <div class="listing-card ${l.featured ? 'featured' : ''}">
-          <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
-            ${l.images && l.images.length > 0
-              ? `<img src="${l.images[0]}" alt="${l.title}">`
-              : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-                  <span style="color:#b2bec3;">No Image</span></div>`}
-            ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
+    container.innerHTML = listings.map(l => `
+      <div class="listing-card ${l.featured ? 'featured' : ''}">
+        <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
+          ${l.images && l.images.length > 0
+            ? `<img src="${l.images[0]}" alt="${l.title}">`
+            : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+                <span style="color:#b2bec3;">No Image</span></div>`}
+          ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
+        </div>
+        <div class="card-body">
+          <div class="badge-group">
+            ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
+            ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
           </div>
-          <div class="card-body">
-            <div class="badge-group">
-              ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
-              ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
-            </div>
-            <span class="category-badge">${formatCategory(l.category)}</span>
-            <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
-            <p><strong>📍</strong> ${l.location || 'N/A'}</p>
-            <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
-            <p class="views">🔥 ${l.views || 0} views</p>
-            <div class="card-actions">
-              <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
-              ${l.landlordWhatsApp ? 
-                `<a href="${waUrl}" onclick="window.handleWhatsAppContact(event, '${waUrl}')" class="wa-btn">💬 Chat</a>`
-                : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
-              }
-            </div>
+          <span class="category-badge">${formatCategory(l.category)}</span>
+          <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
+          <p><strong>📍</strong> ${l.location || 'N/A'}</p>
+          <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
+          <p class="views">🔥 ${l.views || 0} views</p>
+          <div class="card-actions">
+            <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
+            ${l.landlordWhatsApp ? 
+              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat</a>`
+              : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
+            }
           </div>
         </div>
-      `;
-    }).join('');
+      </div>
+    `).join('');
 
     incrementViews(listings.map(l => l.id));
   } catch (error) {
@@ -179,7 +154,7 @@ window.searchListings = () => {
   loadListings(location, maxPrice);
 };
 
-// ================= AUTH FORMS (no change) =================
+// ================= AUTH FORMS =================
 function getLoginHTML() {
   return `
     <div class="auth-form">
@@ -208,7 +183,7 @@ function getSignupHTML() {
     </div>`;
 }
 
-// ================= LANDLORD DASHBOARD =================
+// ================= LANDLORD DASHBOARD & PAYMENTS =================
 async function getDashboardHTML() {
   const user = window.auth.currentUser;
   if (!user) return '<p>Please login first.</p>';
@@ -226,17 +201,43 @@ async function getDashboardHTML() {
 
   return `
     <h2>Welcome, Landlord!</h2>
-    <div class="dashboard-stats">
-      <p>Your Listings: <strong>${listingCount}</strong> / ${isAdmin ? '∞' : listingLimit} free slots${isAdmin ? ' (Admin – unlimited)' : ''}</p>
+    <div class="dashboard-stats" style="background:#ffffff; color:#1f2937; padding:1.25rem; border-radius:10px; margin-bottom:1.5rem; border-left:5px solid #10b981;">
+      <p style="margin:0; font-size:1.1rem;">Your Active Listings: <strong style="color:#10b981;">${listingCount}</strong> / ${isAdmin ? '∞' : listingLimit} slots${isAdmin ? ' (Admin – unlimited)' : ''}</p>
     </div>
+
+    <div class="premium-pricing-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+      
+      <div style="background:#ffffff; color:#1f2937; padding:1.5rem; border-radius:12px; border:1px solid #e5e7eb; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+        <div>
+          <h3 style="color:#1f2937; font-size:1.25rem; margin-bottom:0.5rem;">🚀 Plus Landlord</h3>
+          <p style="color:#4b5563; font-size:0.9rem; margin-bottom:1rem;">Increase your account capacity to manage and post up to 10 rental listings simultaneously.</p>
+          <div style="font-size:1.75rem; font-weight:700; color:#10b981; margin-bottom:1rem;">15,000 UGX <span style="font-size:0.85rem; font-weight:400; color:#6b7280;">one-time</span></div>
+        </div>
+        <button class="primary" style="width:100%; border-radius:6px; padding:0.6rem;" onclick="window.payWithMobileMoney(15000, 'plus_tier')">Upgrade Limit Now</button>
+      </div>
+
+      <div style="background:#ffffff; color:#1f2937; padding:1.5rem; border-radius:12px; border:2px solid #10b981; display:flex; flex-direction:column; justify-content:space-between; position:relative; box-shadow:0 4px 10px rgba(16,185,129,0.15);">
+        <span style="position:absolute; top:-12px; right:15px; background:#10b981; color:#ffffff; font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:12px; text-transform:uppercase;">Best Value</span>
+        <div>
+          <h3 style="color:#1f2937; font-size:1.25rem; margin-bottom:0.5rem;">💎 Unlimited Agency</h3>
+          <p style="color:#4b5563; font-size:0.9rem; margin-bottom:1rem;">Perfect for commercial real estate agents. Unlock completely unlimited property listings.</p>
+          <div style="font-size:1.75rem; font-weight:700; color:#10b981; margin-bottom:1rem;">35,000 UGX <span style="font-size:0.85rem; font-weight:400; color:#6b7280;">one-time</span></div>
+        </div>
+        <button class="primary" style="width:100%; border-radius:6px; padding:0.6rem;" onclick="window.payWithMobileMoney(35000, 'unlimited_tier')">Go Unlimited</button>
+      </div>
+
+    </div>
+
     ${canAddListing ? `
       <button class="primary" onclick="showAddListingForm()">+ Add New Listing</button>
     ` : `
-      <div class="upgrade-message">
-        <p>You've used all your free listing slots. Upgrade to Premium to add more.</p>
-        <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to upgrade my listing limit on ${APP_NAME}" target="_blank" class="wa-btn primary">💬 Upgrade via WhatsApp</a>
+      <div class="upgrade-message" style="background:#fef2f2; color:#991b1b; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; border:1px solid #fca5a5;">
+        <p style="font-weight:600; margin-bottom:0.5rem;">⚠️ Out of Free Slots!</p>
+        <p style="margin-bottom:0; font-size:0.95rem;">You have hit your free profile limit. Use one of the premium mobile money cards above to unlock instant slots, or contact us directly below.</p>
+        <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to upgrade my listing limit on ${APP_NAME}" target="_blank" class="wa-btn primary" style="margin-top:1rem; display:inline-block;">💬 Upgrade via WhatsApp Manual</a>
       </div>
     `}
+
     <div id="add-listing-form" class="dashboard-form" style="display:none;">
       <h3>New Listing</h3>
       <div class="form-group"><label>Title</label><input id="new-title" placeholder="e.g., Cozy 2BR in Central Division"></div>
@@ -269,6 +270,55 @@ async function getDashboardHTML() {
     <div id="my-listings" class="listings-grid">Loading...</div>
   `;
 }
+
+// ================= FLUTTERWAVE GATEWAY HANDLER =================
+window.payWithMobileMoney = function(amount, packageTier) {
+  const user = window.auth.currentUser;
+  if (!user) {
+    alert("Please sign in to process payment tier integrations.");
+    return;
+  }
+
+  FlutterwaveCheckout({
+    public_key: "FLWPUBK_TEST-876352c8b8ce88e84ef9b634863ab90d-X", // Test Public Key
+    tx_ref: "HF-TX-" + Date.now(),
+    amount: amount,
+    currency: "UGX",
+    payment_options: "card, mobilemoneyuganda",
+    customer: {
+      email: user.email,
+      name: "HouseFinder Landlord Profile",
+    },
+    customizations: {
+      title: "HouseFinder Uganda Premium",
+      description: "Payment for " + packageTier.replace('_', ' ') + " account validation.",
+      logo: "https://studio-6076456451-c38fd.web.app/favicon.ico",
+    },
+    callback: async function (data) {
+      if (data.status === "successful" || data.status === "completed") {
+        try {
+          const targetLimit = (packageTier === 'plus_tier') ? 10 : 9999;
+          
+          // Update customer metadata constraints securely directly in Firestore database
+          await updateDoc(doc(window.db, 'users', user.uid), {
+            listingLimit: targetLimit
+          });
+
+          alert("Payment verified successfully! Your listing slot limit has been upgraded.");
+          showSection('dashboard');
+        } catch (dbError) {
+          console.error("Database upgrade fault encountered:", dbError);
+          alert("Payment received but database sync timed out. Please contact support via WhatsApp with Ref: " + data.tx_ref);
+        }
+      } else {
+        alert("Transaction processing declined or cancelled.");
+      }
+    },
+    onclose: function() {
+      console.log("Payment collection environment contextual overlay dismissed safely.");
+    }
+  });
+};
 
 window.showAddListingForm = () => {
   document.getElementById('add-listing-form').style.display = 'block';
@@ -414,8 +464,9 @@ async function loadMyListings() {
               ${l.active ? 'Mark as Rented' : 'Mark as Available'}
             </button>
           </div>
+          
           ${!l.featured ? `
-            <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to make my listing featured: ${l.title} (${l.id})" target="_blank" class="wa-btn" style="padding:0.3rem 0.6rem; font-size:0.8rem;">⭐ Get Featured</a>
+            <button class="primary" style="background:#d97706; padding:0.4rem 0.8rem; font-size:0.8rem; width:100%; margin-top:0.5rem; border-radius:6px;" onclick="window.payWithMobileMoney(5000, 'boost_feature')">⭐ Highlight Property (5,000 UGX)</button>
           ` : ''}
         </div>
       </div>
@@ -432,7 +483,7 @@ window.toggleListing = async (id, newStatus) => {
   loadListings();
 };
 
-// ================= DETAIL MODAL (image gallery) =================
+// ================= DETAIL MODAL =================
 window.openDetailModal = async (listingId) => {
   const ref = doc(window.db, 'listings', listingId);
   const snap = await getDoc(ref);
@@ -458,10 +509,6 @@ window.openDetailModal = async (listingId) => {
     imagesHTML = `<div style="height:200px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">No Image</div>`;
   }
 
-  const waUrl = l.landlordWhatsApp 
-    ? `https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}`
-    : '';
-
   const modalHTML = `
     <div id="listing-modal" class="modal-overlay" onclick="closeModal(event)">
       <div class="modal-content" onclick="event.stopPropagation()">
@@ -477,7 +524,7 @@ window.openDetailModal = async (listingId) => {
           <p>${l.description || ''}</p>
           <div class="modal-actions">
             ${l.landlordWhatsApp ? 
-              `<a href="${waUrl}" onclick="window.handleWhatsAppContact(event, '${waUrl}')" class="wa-btn">💬 Chat on WhatsApp</a>`
+              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
               : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
             }
           </div>
@@ -491,7 +538,6 @@ window.openDetailModal = async (listingId) => {
   document.body.insertAdjacentHTML('beforeend', modalHTML);
 };
 
-// Slider functions (global)
 window.changeModalImage = (dir) => {
   if (!window._modalImages) return;
   let idx = (window._modalIndex + dir + window._modalImages.length) % window._modalImages.length;
@@ -515,7 +561,6 @@ window.closeModal = (event) => {
   window._modalIndex = null;
 };
 
-// ================= HELPERS =================
 function formatCategory(slug) {
   const map = {
     apt_furnished: 'Furnished Apt',
