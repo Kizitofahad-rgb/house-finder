@@ -1,0 +1,22 @@
+{
+  "short_name": "HouseFinder",
+  "name": "House Finder Uganda",
+  "description": "Find verified houses, apartments, and hostels for rent in Uganda instantly.",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/index.html",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "theme_color": "#0070f3",
+  "orientation": "portrait-primary"
+}

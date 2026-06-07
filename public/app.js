@@ -28,6 +28,25 @@ window.showSection = async (section) => {
   }
 };
 
+// ================= STORYTELLING & NARRATIVE INTERACTION =================
+// Intercept WhatsApp clicks to show a comforting local transition experience
+window.handleWhatsAppContact = (event, whatsappUrl) => {
+  event.preventDefault();
+
+  const overlay = document.getElementById('whatsapp-transition-overlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+
+    // Smooth delay for Kampala hunters to read the assurance and let progress bar finish
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      window.open(whatsappUrl, '_blank');
+    }, 2500);
+  } else {
+    window.open(whatsappUrl, '_blank');
+  }
+};
+
 // ================= HOME PAGE =================
 async function getHomeHTML() {
   const html = `
@@ -92,35 +111,41 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
       return;
     }
 
-    container.innerHTML = listings.map(l => `
-      <div class="listing-card ${l.featured ? 'featured' : ''}">
-        <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
-          ${l.images && l.images.length > 0
-            ? `<img src="${l.images[0]}" alt="${l.title}">`
-            : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-                <span style="color:#b2bec3;">No Image</span></div>`}
-          ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
-        </div>
-        <div class="card-body">
-          <div class="badge-group">
-            ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
-            ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+    container.innerHTML = listings.map(l => {
+      const waUrl = l.landlordWhatsApp 
+        ? `https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}`
+        : '';
+
+      return `
+        <div class="listing-card ${l.featured ? 'featured' : ''}">
+          <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
+            ${l.images && l.images.length > 0
+              ? `<img src="${l.images[0]}" alt="${l.title}">`
+              : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+                  <span style="color:#b2bec3;">No Image</span></div>`}
+            ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
           </div>
-          <span class="category-badge">${formatCategory(l.category)}</span>
-          <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
-          <p><strong>📍</strong> ${l.location || 'N/A'}</p>
-          <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
-          <p class="views">🔥 ${l.views || 0} views</p>
-          <div class="card-actions">
-            <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
-            ${l.landlordWhatsApp ? 
-              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat</a>`
-              : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
-            }
+          <div class="card-body">
+            <div class="badge-group">
+              ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
+              ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+            </div>
+            <span class="category-badge">${formatCategory(l.category)}</span>
+            <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
+            <p><strong>📍</strong> ${l.location || 'N/A'}</p>
+            <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
+            <p class="views">🔥 ${l.views || 0} views</p>
+            <div class="card-actions">
+              <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
+              ${l.landlordWhatsApp ? 
+                `<a href="${waUrl}" onclick="window.handleWhatsAppContact(event, '${waUrl}')" class="wa-btn">💬 Chat</a>`
+                : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
+              }
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     incrementViews(listings.map(l => l.id));
   } catch (error) {
@@ -409,17 +434,14 @@ window.toggleListing = async (id, newStatus) => {
 
 // ================= DETAIL MODAL (image gallery) =================
 window.openDetailModal = async (listingId) => {
-  // Fetch the listing from Firestore
   const ref = doc(window.db, 'listings', listingId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const l = snap.data();
-  l.id = listingId; // attach id
+  l.id = listingId;
 
-  // Build modal HTML
   let imagesHTML = '';
   if (l.images && l.images.length > 0) {
-    // We'll create a simple slider
     imagesHTML = `
       <div class="modal-image-slider">
         <button class="slider-btn prev" onclick="changeModalImage(-1)">&#10094;</button>
@@ -430,12 +452,15 @@ window.openDetailModal = async (listingId) => {
         </div>
       </div>
     `;
-    // Store images array on window for the slider
     window._modalImages = l.images;
     window._modalIndex = 0;
   } else {
     imagesHTML = `<div style="height:200px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">No Image</div>`;
   }
+
+  const waUrl = l.landlordWhatsApp 
+    ? `https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}`
+    : '';
 
   const modalHTML = `
     <div id="listing-modal" class="modal-overlay" onclick="closeModal(event)">
@@ -452,7 +477,7 @@ window.openDetailModal = async (listingId) => {
           <p>${l.description || ''}</p>
           <div class="modal-actions">
             ${l.landlordWhatsApp ? 
-              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
+              `<a href="${waUrl}" onclick="window.handleWhatsAppContact(event, '${waUrl}')" class="wa-btn">💬 Chat on WhatsApp</a>`
               : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
             }
           </div>
@@ -461,10 +486,8 @@ window.openDetailModal = async (listingId) => {
     </div>
   `;
 
-  // Remove any existing modal
   const oldModal = document.getElementById('listing-modal');
   if (oldModal) oldModal.remove();
-  // Append new modal to body
   document.body.insertAdjacentHTML('beforeend', modalHTML);
 };
 
@@ -480,17 +503,14 @@ window.setModalImage = (idx) => {
   window._modalIndex = idx;
   const mainImg = document.getElementById('modal-main-image');
   if (mainImg) mainImg.src = window._modalImages[idx];
-  // Update dots
   const dots = document.querySelectorAll('.dot');
   dots.forEach((dot, i) => dot.classList.toggle('active', i === idx));
 };
 
 window.closeModal = (event) => {
-  // If event is click on overlay, close. Otherwise just close.
   if (event && event.target !== document.getElementById('listing-modal')) return;
   const modal = document.getElementById('listing-modal');
   if (modal) modal.remove();
-  // Clean up
   window._modalImages = null;
   window._modalIndex = null;
 };

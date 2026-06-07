@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0070f3">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>House Finder Uganda</title>
@@ -58,5 +60,29 @@
 
   <script type="module" src="auth.js"></script>
   <script type="module" src="app.js"></script>
+  <script>
+     if ('serviceWorker' in navigator) {
+       window.addEventListener('load', () => {
+         navigator.serviceWorker.register('/sw.js')
+           .then(reg => console.log('Service Worker registered successfully!', reg.scope))
+           .catch(err => console.error('Service Worker registration failed:', err));
+       });
+     }
+   </script>
+
+   <div id="whatsapp-transition-overlay" class="transition-overlay hidden">
+  <div class="transition-card">
+    <div class="animation-icon">🏠 ✨ 📱</div>
+    <h2>Connecting you to the landlord...</h2>
+    <p class="story-text">
+      We've verified this property so you don't have to walk the streets or pay any fake brokers. 
+      Your hassle-free home search is paying off!
+    </p>
+    <div class="loading-bar-container">
+      <div class="loading-bar-fill"></div>
+    </div>
+    <span class="safe-badge">🛡️ Zero Broker Fees Guaranteed</span>
+  </div>
+</div>
 </body>
 </html>

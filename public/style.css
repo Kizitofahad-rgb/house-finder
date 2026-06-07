@@ -258,3 +258,129 @@ button.secondary { background:#fff; border:1px solid #ddd; padding:0.7rem 1.5rem
   border-radius: 10px;
   font-size: 0.75rem;
 }
+
+
+.house-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transform: perspective(1000px) rotateX(0deg) rotateY(0deg);
+}
+
+/* Subtle physical 3D popup effect on hover */
+.house-card:hover {
+  transform: perspective(1000px) translateY(-5px) rotateX(2deg);
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.1);
+}
+
+.verified-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+  color: #10b981; /* Reassuring green */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Full-screen background blur overlay */
+.transition-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+/* Premium 3D-feeling Card */
+.transition-card {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 32px;
+  border-radius: 24px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  transform: perspective(1000px) rotateX(4deg);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.animation-icon {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+  animation: bounce 2s infinite ease-in-out;
+}
+
+.transition-card h2 {
+  color: #1f2937;
+  font-size: 1.4rem;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.story-text {
+  color: #4b5563;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+/* Automated Loading Progress Bar */
+.loading-bar-container {
+  background: #e5e7eb;
+  border-radius: 10px;
+  height: 6px;
+  width: 100%;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.loading-bar-fill {
+  background: linear-gradient(90deg, #0070f3, #10b981);
+  height: 100%;
+  width: 0%;
+  border-radius: 10px;
+  animation: fillProgress 2.5s forwards linear;
+}
+
+.safe-badge {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Utility class to quickly hide things */
+.hidden {
+  display: none !important;
+  opacity: 0;
+}
+
+/* Animations */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes fillProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
