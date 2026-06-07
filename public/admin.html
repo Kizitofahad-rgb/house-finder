@@ -19,6 +19,7 @@
       --border: #334155;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
+      --warning: #f59e0b;
     }
 
     * {
@@ -80,7 +81,6 @@
     }
     button.btn-logout:hover { background: var(--danger); color: white; }
 
-    /* Control Panel Sections Layout */
     .panel-section {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -90,7 +90,6 @@
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
-    /* Modern Responsive Management Tables */
     .table-container {
       width: 100%;
       overflow-x: auto;
@@ -124,7 +123,6 @@
       background: rgba(255, 255, 255, 0.02);
     }
 
-    /* Form control elements within table */
     .limit-input-group {
       display: flex;
       align-items: center;
@@ -154,12 +152,8 @@
     .btn-action:hover { opacity: 0.9; }
     .btn-save { background: var(--primary); color: white; }
     .btn-unlimited { background: #6366f1; color: white; }
-
-    /* Styled Toggle Switches for Listings management */
-    .toggle-container {
-      display: flex;
-      gap: 0.75rem;
-    }
+    .btn-approve { background: var(--warning); color: #0f172a; }
+    .btn-delete { background: var(--danger); color: white; margin-left: 0.5rem; }
 
     .switch-label {
       display: inline-flex;
@@ -179,7 +173,6 @@
       accent-color: var(--primary);
     }
 
-    /* Screen State Interventions */
     .access-denied-container {
       text-align: center;
       padding: 5rem 2rem;
@@ -208,10 +201,9 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore, collection, getDocs, doc, updateDoc, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-    // Guard Constraint Identifiers
     const ADMIN_EMAIL = 'kizitofahad665@gmail.com'.trim();
 
     const firebaseConfig = {
@@ -227,7 +219,6 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
-    // Watch Global Authentication State Transitions
     onAuthStateChanged(auth, (user) => {
       if (user && user.email === ADMIN_EMAIL) {
         renderAdminDashboard(user.email);
@@ -236,7 +227,6 @@
       }
     });
 
-    // ================= VIEW RENDERING CONTEXTS =================
     function renderAccessDenied() {
       document.getElementById('admin-view').innerHTML = `
         <div class="access-denied-container">
@@ -259,6 +249,25 @@
             <button class="btn-logout" onclick="window.adminLogout()">Secure Logout</button>
           </div>
         </header>
+
+        <section class="panel-section" style="border-left: 5px solid var(--warning);">
+          <h2>💰 Pending Mobile Money Verifications</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>User Email</th>
+                  <th>Requested Tier</th>
+                  <th>Current Limit</th>
+                  <th>Action Approval</th>
+                </tr>
+              </thead>
+              <tbody id="payments-table-body">
+                <tr><td colspan="4" style="text-align:center; color: var(--text-muted);">Scanning user registration tiers...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section class="panel-section">
           <h2>👥 Account Limits & Tiers Directory</h2>
@@ -290,7 +299,7 @@
                   <th>Location</th>
                   <th>Price (UGX)</th>
                   <th>Views</th>
-                  <th>System Status Toggles</th>
+                  <th>System Status Toggles / Options</th>
                 </tr>
               </thead>
               <tbody id="listings-table-body">
@@ -301,12 +310,54 @@
         </section>
       `;
 
-      // Trigger parallel data population
+      loadPaymentsCollection();
       loadUsersCollection();
       loadListingsCollection();
     }
 
     // ================= DATA FETCHERS & DOM WORKERS =================
+    async function loadPaymentsCollection() {
+      const tbody = document.getElementById('payments-table-body');
+      if (!tbody) return;
+
+      try {
+        // Fetch users whose listingLimit is a placeholder showing they need an audit check
+        const snapshot = await getDocs(collection(db, 'users'));
+        let rows = '';
+        let pendingCount = 0;
+
+        snapshot.forEach((userDoc) => {
+          const u = userDoc.data();
+          const uid = userDoc.id;
+          
+          // Identify accounts requesting an verification review
+          if (u.listingLimit === 10 || u.listingLimit === 9999) {
+            pendingCount++;
+            let tierName = u.listingLimit === 10 ? '🚀 Plus Tier (15k)' : '💎 Unlimited Agency (35k)';
+            
+            rows += `
+              <tr>
+                <td style="font-weight: 600; color: var(--warning);">${u.email || 'Anonymous'}</td>
+                <td><strong>${tierName}</strong></td>
+                <td>Account Limit: ${u.listingLimit}</td>
+                <td>
+                  <button class="btn-action btn-save" onclick="window.confirmPaymentVerified('${uid}', ${u.listingLimit})">✅ Payment Confirmed</button>
+                </td>
+              </tr>
+            `;
+          }
+        });
+
+        if (pendingCount === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">No pending manual mobile money claims to audit. All records clear!</td></tr>`;
+        } else {
+          tbody.innerHTML = rows;
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="color: var(--danger);">Payments log fault: ${err.message}</td></tr>`;
+      }
+    }
+
     async function loadUsersCollection() {
       const tbody = document.getElementById('users-table-body');
       if (!tbody) return;
@@ -374,15 +425,18 @@
               <td style="font-weight: 600; color: var(--primary);">${l.price ? l.price.toLocaleString() : '0'}</td>
               <td>🔥 ${l.views || 0}</td>
               <td>
-                <div class="toggle-container">
-                  <label class="switch-label">
-                    <input type="checkbox" ${l.featured ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'featured', this.checked)">
-                    ⭐ Featured
-                  </label>
-                  <label class="switch-label">
-                    <input type="checkbox" ${l.verified ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'verified', this.checked)">
-                    ✅ Verified
-                  </label>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div class="toggle-container">
+                    <label class="switch-label">
+                      <input type="checkbox" ${l.featured ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'featured', this.checked)">
+                      ⭐ Featured
+                    </label>
+                    <label class="switch-label">
+                      <input type="checkbox" ${l.verified ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'verified', this.checked)">
+                      ✅ Verified
+                    </label>
+                  </div>
+                  <button class="btn-action btn-delete" onclick="window.deleteFakeListing('${id}')">🗑️ Delete</button>
                 </div>
               </td>
             </tr>
@@ -395,6 +449,19 @@
     }
 
     // ================= ATTACH GLOBAL ACTION HOOKS =================
+    window.confirmPaymentVerified = async (uid, verifiedLimit) => {
+      try {
+        // Securely confirm the package status inside Firestore
+        await updateDoc(doc(db, 'users', uid), {
+          listingLimit: verifiedLimit
+        });
+        alert("Payment audited and approved successfully! Landlord allocation limits activated.");
+        renderAdminDashboard(ADMIN_EMAIL);
+      } catch (err) {
+        alert("Error approving premium package: " + err.message);
+      }
+    };
+
     window.updateUserLimit = async (uid) => {
       const input = document.getElementById(`input-limit-${uid}`);
       if (!input) return;
@@ -431,6 +498,17 @@
         console.log(`Listing metadata vector ${id} modified field: [${fieldName}] -> ${isChecked}`);
       } catch (err) {
         alert(`Failed to update field toggle state: ` + err.message);
+      }
+    };
+
+    window.deleteFakeListing = async (id) => {
+      if (!confirm("Are you sure you want to permanently delete this property listing? This action cannot be undone.")) return;
+      try {
+        await deleteDoc(doc(db, 'listings', id));
+        alert("Listing removed from database successfully.");
+        renderAdminDashboard(ADMIN_EMAIL);
+      } catch (err) {
+        alert("Error executing deletion command: " + err.message);
       }
     };
 

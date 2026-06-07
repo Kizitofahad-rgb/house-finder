@@ -3,17 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>House Finder Uganda</title>
+  
+  <title>HouseFinder Uganda — Find Rentals Directly Without Brokers</title>
+  <meta name="description" content="Find furnished apartments, single rooms, hostels, and houses for rent in Kampala directly from landlords. No expensive broker fees.">
+  <meta name="keywords" content="houses for rent kampala, apartments for rent uganda, hostels kikoni, single rooms makindye, housefinder uganda">
+  
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://studio-6076456451-c38fd.web.app/">
+  <meta property="og:title" content="HouseFinder Uganda — Find Rentals Directly Without Brokers">
+  <meta property="og:description" content="List properties or find your next rental completely hassle-free. Direct connection via WhatsApp.">
+  <meta property="og:image" content="https://studio-6076456451-c38fd.web.app/favicon.ico">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HouseFinder Uganda">
+  <meta name="twitter:description" content="Rentals in Uganda managed directly by landlords.">
+
   <link rel="stylesheet" href="style.css">
 
-  <script src="https://checkout.flutterwave.com/v3.js"></script>
+  <script src="https://cyb.pesapal.com/v3/js/pesapalconnect.js"></script>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-    // Your active Firebase project configuration
     const firebaseConfig = {
       apiKey: "AIzaSyCIJG-Zz1SUEAOMtvezDuedNolk6VIKcas",
       authDomain: "studio-6076456451-c38fd.firebaseapp.com",
@@ -23,19 +36,16 @@
       appId: "1:657925779778:web:a3bee5a08da4c18aaa18db"
     };
 
-    // Initialize Global References securely before secondary modules load
     const app = initializeApp(firebaseConfig);
     window.db = getFirestore(app);
     window.auth = getAuth(app);
 
-    // Dynamic Navigation Routing Guard Control
     const navLinks = document.getElementById('nav-links');
     onAuthStateChanged(window.auth, async (user) => {
       const linksContainer = document.getElementById('nav-links');
       if (!linksContainer) return;
 
       if (user) {
-        // Safe check for your admin identity string
         const isAdmin = user.email && user.email.trim() === 'kizitofahad665@gmail.com';
         
         linksContainer.innerHTML = `
@@ -52,13 +62,11 @@
         `;
       }
 
-      // Re-trigger layout engine fallback sync
       if (window.currentSection === 'dashboard') {
         showSection('dashboard');
       }
     });
 
-    // Global logout handler bridge linked directly to navbar template buttons
     window.logout = () => {
       signOut(window.auth).then(() => {
         window.location.reload();
@@ -87,10 +95,41 @@
   <main id="app">
     </main>
 
-  <script type="module">
-    // Cache busting guarantees the browser discards old files and runs your updates instantly
-    const version = '?v=' + Date.now();
+  <section class="marketing-intro" id="marketing-flow" style="max-width:1200px; margin: 4rem auto 2rem; padding: 0 1.5rem;">
+    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin-bottom: 3rem;">
     
+    <div style="text-align: center; margin-bottom: 3rem;">
+      <h2 style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; color:#ffffff;">Simple. Direct. No Broker Fees.</h2>
+      <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem;">Whether you are looking for a room or leasing out an entire property portfolio.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem;">
+      
+      <div style="background: #1e293b; padding: 2.5rem 2rem; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">
+        <h3 style="font-size: 1.4rem; font-weight:600; margin-bottom: 1.25rem; color: #10b981; display:flex; align-items:center; gap:0.5rem;">🔍 For House Seekers</h3>
+        <ol style="color: #f8fafc; margin-left: 1.25rem; line-height: 1.8; font-size: 0.98rem;">
+          <li style="margin-bottom: 0.75rem;">Filter listings by location, budget, or accommodation category.</li>
+          <li style="margin-bottom: 0.75rem;">Tap on a house card to view detailed description and multiple photos.</li>
+          <li>Click <strong style="color: #10b981;">"Chat"</strong> to talk directly with the property manager on WhatsApp.</li>
+        </ol>
+      </div>
+
+      <div style="background: #1e293b; padding: 2.5rem 2rem; border-radius: 12px; border: 2px solid #10b981; position: relative; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">
+        <span style="position: absolute; top:-12px; right:15px; background:#10b981; color:white; font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:4px; letter-spacing: 0.05em;">LANDLORDS</span>
+        <h3 style="font-size: 1.4rem; font-weight:600; margin-bottom: 1.25rem; color: #10b981;">🏢 For Landlords & Agents</h3>
+        <ol style="color: #f8fafc; margin-left: 1.25rem; line-height: 1.8; font-size: 0.98rem; margin-bottom: 1.75rem;">
+          <li style="margin-bottom: 0.75rem;">Click <strong style="color: #10b981;">"Sign Up"</strong> on the menu bar and select <strong>Landlord/Agent</strong>.</li>
+          <li style="margin-bottom: 0.75rem;">Head to your customized personal <strong>Dashboard</strong>.</li>
+          <li>Upload photos, add description details, and receive client calls directly!</li>
+        </ol>
+        <button onclick="showSection('signup')" class="primary" style="width: 100%; padding: 0.75rem; font-weight: 700; font-size: 1rem; border-radius: 6px;">List Your Property Now (Free)</button>
+      </div>
+
+    </div>
+  </section>
+
+  <script type="module">
+    const version = '?v=' + Date.now();
     import('./auth.js' + version).then(() => {
       return import('./app.js' + version);
     }).catch(err => console.error("Error launching application layers:", err));
