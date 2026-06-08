@@ -6,6 +6,8 @@ import {
 // ---- GLOBAL STATE ----
 window.currentSection = 'home';
 window.currentCategoryFilter = '';
+// Persistent tracker array for multiple photo additions
+window.selectedFormFiles = [];
 
 // ---- CONFIG ----
 const YOUR_WHATSAPP_NUMBER = '256775989760';
@@ -258,11 +260,17 @@ async function getDashboardHTML() {
       <div class="form-group"><label>Contact Email</label><input id="new-contact" type="email"></div>
       <div class="form-group"><label>WhatsApp Number (optional, e.g., 256712345678)</label><input id="new-whatsapp" type="text" placeholder="256..."></div>
       <div class="form-group"><label>Description</label><textarea id="new-description"></textarea></div>
+      
       <div class="form-group">
-        <label>Images (multiple)</label>
-        <input type="file" id="new-images" accept="image/*" multiple>
-        <div class="image-preview" id="image-preview"></div>
+        <label>Property Photos</label>
+        <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
+          <input type="file" id="new-images" accept="image/*" style="display: none;">
+          <button type="button" class="secondary" style="margin: 0; padding: 0.5rem 1rem;" onclick="document.getElementById('new-images').click()">📸 Choose Photo</button>
+          <span id="photo-count-badge" style="font-size: 0.9rem; color: #6b7280; font-weight: 600;">0 photos selected</span>
+        </div>
+        <div class="image-preview" id="image-preview" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px;"></div>
       </div>
+
       <button class="primary" onclick="addListing()">Submit Listing</button>
       <button class="secondary" onclick="document.getElementById('add-listing-form').style.display='none'">Cancel</button>
     </div>
@@ -366,23 +374,59 @@ window.payWithMobileMoney = async function(amount, packageTier) {
   }
 };
 
+// ================= CUMULATIVE MULTI-IMAGE HANDLERS =================
 window.showAddListingForm = () => {
   document.getElementById('add-listing-form').style.display = 'block';
+  
+  window.selectedFormFiles = [];
+  const previewContainer = document.getElementById('image-preview');
+  const countBadge = document.getElementById('photo-count-badge');
+  if (previewContainer) previewContainer.innerHTML = '';
+  if (countBadge) countBadge.textContent = '0 photos selected';
+
   const fileInput = document.getElementById('new-images');
   if (fileInput) {
-    fileInput.addEventListener('change', function(e) {
+    const clone = fileInput.cloneNode(true);
+    fileInput.parentNode.replaceChild(clone, fileInput);
+    
+    clone.addEventListener('change', function(e) {
       const files = Array.from(e.target.files);
-      const preview = document.getElementById('image-preview');
-      preview.innerHTML = '';
+      if (files.length === 0) return;
+
       files.forEach(file => {
+        window.selectedFormFiles.push(file);
+        const currentIdx = window.selectedFormFiles.length - 1;
+
         const reader = new FileReader();
-        reader.onload = (e) => {
-          preview.innerHTML += `<img src="${e.target.result}" alt="preview">`;
+        reader.onload = (event) => {
+          const imageCardHTML = `
+            <div id="prev-card-${currentIdx}" style="position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+              <img src="${event.target.result}" style="width: 100%; height: 100%; object-fit: cover;">
+              <button type="button" onclick="window.removeSelectedPhoto(${currentIdx})" style="position: absolute; top: 2px; right: 2px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;">&times;</button>
+            </div>
+          `;
+          if (previewContainer) previewContainer.insertAdjacentHTML('beforeend', imageCardHTML);
         };
         reader.readAsDataURL(file);
       });
+
+      clone.value = '';
+      if (countBadge) {
+        const activeCount = window.selectedFormFiles.filter(f => f !== null).length;
+        countBadge.textContent = `${activeCount} photos selected`;
+      }
     });
   }
+};
+
+window.removeSelectedPhoto = (index) => {
+  window.selectedFormFiles[index] = null;
+  const card = document.getElementById(`prev-card-${index}`);
+  if (card) card.remove();
+  
+  const activeCount = window.selectedFormFiles.filter(f => f !== null).length;
+  const countBadge = document.getElementById('photo-count-badge');
+  if (countBadge) countBadge.textContent = `${activeCount} photos selected`;
 };
 
 // ================= STABLE ASYNC SEQUENTIAL MULTI-IMAGE UPLOADER =================
@@ -408,21 +452,22 @@ window.addListing = async () => {
   const contactEmail = document.getElementById('new-contact').value.trim();
   const landlordWhatsApp = document.getElementById('new-whatsapp').value.trim();
   const description = document.getElementById('new-description').value.trim();
-  const imageFiles = document.getElementById('new-images').files;
 
   if (!title || !location) { alert('Title and location are required.'); return; }
 
+  const validFiles = window.selectedFormFiles.filter(file => file !== null);
+
   const submitBtn = document.querySelector('#add-listing-form button.primary');
-  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading images (0/' + imageFiles.length + ')…'; }
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading images (0/' + validFiles.length + ')…'; }
 
   let imageURLs = [];
   
   try {
-    if (imageFiles.length > 0) {
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
+    if (validFiles.length > 0) {
+      for (let i = 0; i < validFiles.length; i++) {
+        const file = validFiles[i];
         
-        if (submitBtn) submitBtn.textContent = `Uploading photo ${i + 1} of ${imageFiles.length}…`;
+        if (submitBtn) submitBtn.textContent = `Uploading photo ${i + 1} of ${validFiles.length}…`;
 
         const base64Data = await new Promise((resolve, reject) => {
           const reader = new FileReader();
