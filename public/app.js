@@ -114,7 +114,7 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
           <div class="card-actions">
             <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
             ${l.landlordWhatsApp ? 
-              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat</a>`
+              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi,%20I'm%20interested%20in%20your%20property:%20${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat</a>`
               : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
             }
           </div>
@@ -234,7 +234,7 @@ async function getDashboardHTML() {
       <div class="upgrade-message" style="background:#fef2f2; color:#991b1b; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; border:1px solid #fca5a5;">
         <p style="font-weight:600; margin-bottom:0.5rem;">⚠️ Out of Free Slots!</p>
         <p style="margin-bottom:0; font-size:0.95rem;">You have hit your free profile limit. Use one of the premium mobile money cards above to unlock instant slots, or contact us directly below.</p>
-        <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I want to upgrade my listing limit on ${APP_NAME}" target="_blank" class="wa-btn primary" style="margin-top:1rem; display:inline-block;">💬 Upgrade via WhatsApp Manual</a>
+        <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I%20want%20to%20upgrade%20my%20listing%20limit%20on%20${APP_NAME}" target="_blank" class="wa-btn primary" style="margin-top:1rem; display:inline-block;">💬 Upgrade via WhatsApp Manual</a>
       </div>
     `}
 
@@ -285,7 +285,6 @@ window.payWithMobileMoney = async function(amount, packageTier) {
   console.log(`Initializing Pesapal Handshake for ${packageTier}: ${amount} UGX`);
 
   try {
-    // 1. Core API Request Handshake Token Execution
     const authResponse = await fetch('https://pay.pesapal.com/v3/api/Auth/RequestToken', {
       method: 'POST',
       headers: {
@@ -301,7 +300,6 @@ window.payWithMobileMoney = async function(amount, packageTier) {
     const authData = await authResponse.json();
     if (!authData.token) throw new Error("CORS validation or API handshake mismatch.");
 
-    // 2. Submit Transaction Order Blueprint
     const orderPayload = {
       "id": uniqueReference,
       "amount": amount,
@@ -335,12 +333,8 @@ window.payWithMobileMoney = async function(amount, packageTier) {
     }
 
   } catch (error) {
-    // =========================================================================
-    // 🛡️ BROWSER-SAFE CORS AUTOMATED FALLBACK INTERFACE (Spark/Free Tier Compliant)
-    // =========================================================================
     console.warn("Direct API blocked by frontend browser security policy rules. Serving robust manual gateway fallback.");
     
-    // Evaluate assignment threshold boundaries cleanly
     let targetLimit = 2;
     if (packageTier === 'plus_tier') targetLimit = 10;
     if (packageTier === 'unlimited_tier') targetLimit = 9999;
@@ -357,10 +351,8 @@ window.payWithMobileMoney = async function(amount, packageTier) {
     if (userPrompt) {
       try {
         if (packageTier === 'boost_feature') {
-          // If boosting a unique card item, we update local context parameters or alert admin
           alert("Highlight tracking request logged! Our backend is verifying the reference.");
         } else {
-          // Update profile bounds directly in Firestore
           await updateDoc(doc(window.db, 'users', user.uid), {
             listingLimit: targetLimit
           });
@@ -393,6 +385,7 @@ window.showAddListingForm = () => {
   }
 };
 
+// ================= STABLE ASYNC SEQUENTIAL MULTI-IMAGE UPLOADER =================
 window.addListing = async () => {
   const user = window.auth.currentUser;
   if (!user) { alert('You must be logged in.'); return; }
@@ -420,32 +413,45 @@ window.addListing = async () => {
   if (!title || !location) { alert('Title and location are required.'); return; }
 
   const submitBtn = document.querySelector('#add-listing-form button.primary');
-  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading…'; }
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading images (0/' + imageFiles.length + ')…'; }
 
   let imageURLs = [];
+  
   try {
     if (imageFiles.length > 0) {
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
-        const reader = new FileReader();
-        await new Promise((resolve, reject) => {
-          reader.onload = async (e) => {
-            try {
-              const response = await fetch('https://house-finder-mu.vercel.app/api/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: e.target.result })
-              });
-              const data = await response.json();
-              if (data.url) { imageURLs.push(data.url); resolve(); }
-              else { reject(new Error(data.error || 'Upload failed')); }
-            } catch (err) { reject(err); }
-          };
-          reader.onerror = () => reject(new Error('Failed to read file'));
+        
+        if (submitBtn) submitBtn.textContent = `Uploading photo ${i + 1} of ${imageFiles.length}…`;
+
+        const base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => reject(new Error(`Failed to parse photo format data for item index: ${i}`));
           reader.readAsDataURL(file);
         });
+
+        const response = await fetch('https://house-finder-mu.vercel.app/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: base64Data })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Vercel pipeline rejected image index ${i + 1}. Server status code: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.url) { 
+          imageURLs.push(data.url); 
+        } else { 
+          throw new Error(data.error || `Upload array structural error returned at position ${i}`); 
+        }
       }
     }
+
+    if (submitBtn) submitBtn.textContent = 'Saving Listing Details…';
 
     await addDoc(collection(window.db, 'listings'), {
       landlordId: user.uid,
@@ -466,8 +472,10 @@ window.addListing = async () => {
 
     document.getElementById('add-listing-form').style.display = 'none';
     showSection('dashboard');
+    alert('Property posted successfully with all selected photos!');
   } catch (error) {
-    alert('Error: ' + error.message);
+    alert('Image Pipeline Error: ' + error.message);
+    console.error("Upload failure debug vector info:", error);
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false; 
@@ -581,7 +589,7 @@ window.openDetailModal = async (listingId) => {
           <p>${l.description || ''}</p>
           <div class="modal-actions">
             ${l.landlordWhatsApp ? 
-              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi, I'm interested in your property: ${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
+              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi,%20I'm%20interested%20in%20your%20property:%20${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
               : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
             }
           </div>
