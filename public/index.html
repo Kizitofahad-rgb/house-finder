@@ -8,6 +8,8 @@
   <meta name="description" content="Find furnished apartments, single rooms, hostels, and houses for rent in Kampala directly from landlords. No expensive broker fees.">
   <meta name="keywords" content="houses for rent kampala, apartments for rent uganda, hostels kikoni, single rooms makindye, housefinder uganda">
   
+  <link rel="manifest" href="/manifest.json">
+
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://studio-6076456451-c38fd.web.app/">
   <meta property="og:title" content="HouseFinder Uganda — Find Rentals Directly Without Brokers">
@@ -92,8 +94,30 @@
     </div>
   </nav>
 
+  <div id="pwa-install-banner" style="display: none; background: #1e293b; border-bottom: 2px solid #10b981; padding: 12px 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="background: #10b981; color: #ffffff; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </div>
+        <div>
+          <h4 style="margin: 0; color: #ffffff; font-size: 0.95rem; font-weight: 600;">Install HouseFinder App</h4>
+          <p style="margin: 2px 0 0 0; color: #94a3b8; font-size: 0.8rem;">Access verified listings instantly right from your home screen!</p>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <button id="pwa-cancel-btn" style="background: transparent; border: none; color: #94a3b8; font-size: 0.85rem; font-weight: 500; cursor: pointer; padding: 6px 12px;">Maybe Later</button>
+        <button id="pwa-install-btn" style="background: #10b981; color: #ffffff; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 700; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);">Download App</button>
+      </div>
+    </div>
+  </div>
+
   <main id="app">
-    </main>
+  </main>
 
   <section class="marketing-intro" id="marketing-flow" style="max-width:1200px; margin: 4rem auto 2rem; padding: 0 1.5rem;">
     <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin-bottom: 3rem;">
@@ -143,6 +167,44 @@
           .catch(err => console.error('Service Worker registration failed:', err));
       });
     }
+
+    // 📥 Custom Progressive Web App (PWA) Install Logic
+    let deferredPrompt;
+    const installBanner = document.getElementById('pwa-install-banner');
+    const installBtn = document.getElementById('pwa-install-btn');
+    const cancelBtn = document.getElementById('pwa-cancel-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Stop older browser mini-bars from displaying automatically
+      e.preventDefault();
+      // Keep the system event saved so we can use it on user demand
+      deferredPrompt = e;
+      // Show your clean download banner seamlessly
+      installBanner.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        // Trigger the smartphone installation popup
+        deferredPrompt.prompt();
+        // Check if user accepted or dismissed the installation request
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`PWA installation intent: ${outcome}`);
+        deferredPrompt = null;
+        installBanner.style.display = 'none';
+      }
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      // Cleanly hide the banner if they choose "Maybe Later"
+      installBanner.style.display = 'none';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      installBanner.style.display = 'none';
+      deferredPrompt = null;
+      alert('HouseFinder Uganda has been downloaded and added to your Home Screen! 🎉');
+    });
   </script>
 </body>
 </html>
