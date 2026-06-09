@@ -46,7 +46,7 @@ async function getHomeHTML() {
       <button class="cat-pill" onclick="filterByCategory('house')">Houses</button>
       <button class="cat-pill" onclick="filterByCategory('hostel')">Hostels</button>
       <button class="cat-pill" onclick="filterByCategory('commercial')">Commercial</button>
-      <button class="cat-pill" onclick="filterByCategory('land')">Land</button>
+      <button class="cat-pill" onclick="land')">Land</button>
     </div>
     <div class="search-area" style="margin-top:1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
       <input type="text" id="searchLocation" placeholder="Location (e.g., Makindye)" style="flex: 1; min-width: 150px;">
@@ -341,10 +341,59 @@ async function getDashboardHTML() {
   const isAdmin = (user.email && user.email === ADMIN_EMAIL);
   const canAddListing = isAdmin || (listingCount < listingLimit);
 
+  // --- 📊 DYNAMIC ANALYTICS ENGINE FOR LANDLORDS ---
+  let totalViews = 0;
+  let mostPopularProperty = "None yet";
+  let maxViews = -1;
+
+  try {
+    const q = query(
+      collection(window.db, 'listings'),
+      where('landlordId', '==', user.uid)
+    );
+    const snapshot = await getDocs(q);
+    
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const views = data.views || 0;
+      totalViews += views;
+      
+      if (views > maxViews) {
+        maxViews = views;
+        mostPopularProperty = data.title || "Untitled Property";
+      }
+    });
+    
+    if (snapshot.docs.length === 0) {
+      mostPopularProperty = "No active properties";
+    }
+  } catch (err) {
+    console.error("Error calculating live dashboard metrics:", err);
+  }
+
   return `
     <h2>Welcome, Landlord!</h2>
-    <div class="dashboard-stats" style="background:#ffffff; color:#1f2937; padding:1.25rem; border-radius:10px; margin-bottom:1.5rem; border-left:5px solid #10b981;">
-      <p style="margin:0; font-size:1.1rem;">Your Active Listings: <strong style="color:#10b981;">${listingCount}</strong> / ${isAdmin ? '∞' : listingLimit} slots${isAdmin ? ' (Admin – unlimited)' : ''}</p>
+    
+    <div class="analytics-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; margin-top: 0.5rem;">
+      
+      <div style="background: #ffffff; color: #1f2937; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #10b981; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600;">🔥 Total Portfolio Views</span>
+        <strong style="font-size: 1.8rem; color: #10b981; margin-top: 0.2rem;">${totalViews.toLocaleString()}</strong>
+      </div>
+
+      <div style="background: #ffffff; color: #1f2937; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600;">🏆 Most Popular Property</span>
+        <strong style="font-size: 1.1rem; color: #1f2937; margin-top: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${mostPopularProperty}">
+          ${mostPopularProperty}
+        </strong>
+        ${maxViews > -1 ? `<span style="font-size: 0.75rem; color: #3b82f6; font-weight: bold; margin-top: 0.1rem;">(${maxViews} views)</span>` : ''}
+      </div>
+
+      <div style="background: #ffffff; color: #1f2937; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #f59e0b; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600;">📋 Listing Slots Used</span>
+        <strong style="font-size: 1.5rem; color: #f59e0b; margin-top: 0.2rem;">${listingCount} <span style="font-size: 0.9rem; font-weight: 400; color: #6b7280;">/ ${isAdmin ? '∞' : listingLimit}</span></strong>
+      </div>
+
     </div>
 
     <div class="premium-pricing-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
