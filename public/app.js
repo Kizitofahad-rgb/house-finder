@@ -48,9 +48,17 @@ async function getHomeHTML() {
       <button class="cat-pill" onclick="filterByCategory('commercial')">Commercial</button>
       <button class="cat-pill" onclick="filterByCategory('land')">Land</button>
     </div>
-    <div class="search-area" style="margin-top:1rem;">
-      <input type="text" id="searchLocation" placeholder="Location (e.g., Makindye)">
-      <input type="number" id="maxPrice" placeholder="Max price (UGX/month)">
+    <div class="search-area" style="margin-top:1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+      <input type="text" id="searchLocation" placeholder="Location (e.g., Makindye)" style="flex: 1; min-width: 150px;">
+      <input type="number" id="maxPrice" placeholder="Max price (UGX/month)" style="flex: 1; min-width: 150px;">
+      <select id="searchBedrooms" style="flex: 1; min-width: 120px; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; background: white; color: #1f2937;">
+        <option value="">Any Bedrooms</option>
+        <option value="0">0 (Studio/Single)</option>
+        <option value="1">1 Bedroom</option>
+        <option value="2">2 Bedrooms</option>
+        <option value="3">3 Bedrooms</option>
+        <option value="4">4+ Bedrooms</option>
+      </select>
       <button onclick="searchListings()">Search</button>
     </div>
     <div id="listings-container" class="listings-grid">Loading...</div>
@@ -63,7 +71,7 @@ async function getHomeHTML() {
   `;
   const tryLoad = () => {
     if (document.getElementById('listings-container')) {
-      loadListings('', '');
+      loadListings('', '', '');
     } else {
       setTimeout(tryLoad, 50);
     }
@@ -105,7 +113,7 @@ function generateListingCardsHTML(listingsArray) {
   `).join('');
 }
 
-async function loadListings(locationFilter = '', maxPriceFilter = '') {
+async function loadListings(locationFilter = '', maxPriceFilter = '', bedroomsFilter = '') {
   const container = document.getElementById('listings-container');
   const paginationWrapper = document.getElementById('pagination-wrapper');
   if (!container) return;
@@ -146,6 +154,19 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
     }
     if (maxPriceFilter) {
       listings = listings.filter(l => l.price != null && l.price <= parseInt(maxPriceFilter));
+    }
+    if (bedroomsFilter !== '') {
+      const bCount = parseInt(bedroomsFilter);
+      if (bCount === 4) {
+        listings = listings.filter(l => l.bedrooms >= 4);
+      } else {
+        listings = listings.filter(l => l.bedrooms === bCount);
+      }
+    }
+
+    if (listings.length === 0) {
+      container.innerHTML = '<p>No listings match your combined filters. Try broadening your criteria.</p>';
+      return;
     }
 
     container.innerHTML = generateListingCardsHTML(listings);
@@ -216,6 +237,16 @@ window.loadMoreListings = async () => {
       newNextListings = newNextListings.filter(l => l.price != null && l.price <= parseInt(maxPriceFilter));
     }
 
+    const bedroomsFilter = document.getElementById('searchBedrooms')?.value || '';
+    if (bedroomsFilter !== '') {
+      const bCount = parseInt(bedroomsFilter);
+      if (bCount === 4) {
+        newNextListings = newNextListings.filter(l => l.bedrooms >= 4);
+      } else {
+        newNextListings = newNextListings.filter(l => l.bedrooms === bCount);
+      }
+    }
+
     // Append the newly rendered listings directly to the bottom grid without wiping out previous cards
     if (newNextListings.length > 0) {
       container.insertAdjacentHTML('beforeend', generateListingCardsHTML(newNextListings));
@@ -254,13 +285,15 @@ window.filterByCategory = (cat) => {
   if (activeBtn) activeBtn.classList.add('active');
   const location = document.getElementById('searchLocation')?.value || '';
   const maxPrice = document.getElementById('maxPrice')?.value || '';
-  loadListings(location, maxPrice);
+  const bedrooms = document.getElementById('searchBedrooms')?.value || '';
+  loadListings(location, maxPrice, bedrooms);
 };
 
 window.searchListings = () => {
   const location = document.getElementById('searchLocation')?.value || '';
   const maxPrice = document.getElementById('maxPrice')?.value || '';
-  loadListings(location, maxPrice);
+  const bedrooms = document.getElementById('searchBedrooms')?.value || '';
+  loadListings(location, maxPrice, bedrooms);
 };
 
 // ================= AUTH FORMS =================
@@ -689,7 +722,6 @@ async function loadMyListings() {
       </div>
     `).join('');
   } catch (error) {
-    // FIX: Changed trailing single quote to a backtick
     container.innerHTML = `<p class="error">Error loading your listings: ${error.message}</p>`;
     console.error(error);
   }
