@@ -1,5 +1,5 @@
 import {
-  collection, addDoc, getDocs, query, where, orderBy,
+  collection, addDoc, getDocs, query, where, orderBy, limit, startAfter,
   doc, getDoc, updateDoc, increment
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
@@ -8,6 +8,10 @@ window.currentSection = 'home';
 window.currentCategoryFilter = '';
 // Persistent tracker array for multiple photo additions
 window.selectedFormFiles = [];
+
+// 📉 Pagination State Variables
+window.lastVisibleDoc = null; 
+window.isFetchingMore = false;
 
 // ---- CONFIG ----
 const YOUR_WHATSAPP_NUMBER = '256775989760';
@@ -50,6 +54,12 @@ async function getHomeHTML() {
       <button onclick="searchListings()">Search</button>
     </div>
     <div id="listings-container" class="listings-grid">Loading...</div>
+    
+    <div id="pagination-wrapper" style="text-align: center; margin: 2.5rem 0 1rem; display: none;">
+      <button id="load-more-btn" onclick="window.loadMoreListings()" style="background: #10b981; color: #ffffff; border: none; padding: 12px 30px; font-weight: 700; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+        🔄 Load More Listings
+      </button>
+    </div>
   `;
   const tryLoad = () => {
     if (document.getElementById('listings-container')) {
@@ -62,25 +72,74 @@ async function getHomeHTML() {
   return html;
 }
 
+// Map standard data formats directly into clean cards
+function generateListingCardsHTML(listingsArray) {
+  return listingsArray.map(l => `
+    <div class="listing-card ${l.featured ? 'featured' : ''}">
+      <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
+        ${l.images && l.images.length > 0
+          ? `<img src="${l.images[0]}" alt="${l.title}">`
+          : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
+              <span style="color:#b2bec3;">No Image</span></div>`}
+        ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
+      </div>
+      <div class="card-body">
+        <div class="badge-group">
+          ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
+          ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+        </div>
+        <span class="category-badge">${formatCategory(l.category)}</span>
+        <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
+        <p><strong>📍</strong> ${l.location || 'N/A'}</p>
+        <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
+        <p class="views">🔥 ${l.views || 0} views</p>
+        <div class="card-actions">
+          <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
+          ${l.landlordWhatsApp ? 
+            `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi,%20I'm%20interested%20in%20your%20property:%20${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat</a>`
+            : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
+          }
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
 async function loadListings(locationFilter = '', maxPriceFilter = '') {
   const container = document.getElementById('listings-container');
+  const paginationWrapper = document.getElementById('pagination-wrapper');
   if (!container) return;
 
+  // Reset pagination markers on every fresh baseline filter search
+  window.lastVisibleDoc = null;
+  if (paginationWrapper) paginationWrapper.style.display = 'none';
+
+  // Core Query bounded strictly to fetch only the first 20 records
   let q = query(
     collection(window.db, 'listings'),
     where('active', '==', true),
     orderBy('featured', 'desc'),
-    orderBy('createdAt', 'desc')
+    orderBy('createdAt', 'desc'),
+    limit(20)
   );
 
   try {
     const snapshot = await getDocs(q);
+    
+    if (snapshot.docs.length === 0) {
+      container.innerHTML = '<p>No listings found. Try a different filter.</p>';
+      return;
+    }
+
+    // Save index pointer context tracking for subsequent pagination calls
+    window.lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+
     let listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+    // Apply active memory filter routines
     const catFilter = window.currentCategoryFilter || '';
-    if (catFilter) {
-      listings = listings.filter(l => l.category === catFilter);
-    }
+    if (catFilter) listings = listings.filter(l => l.category === catFilter);
+    
     if (locationFilter) {
       const search = locationFilter.toLowerCase();
       listings = listings.filter(l => (l.location || '').toLowerCase().includes(search));
@@ -89,40 +148,12 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
       listings = listings.filter(l => l.price != null && l.price <= parseInt(maxPriceFilter));
     }
 
-    if (listings.length === 0) {
-      container.innerHTML = '<p>No listings found. Try a different filter.</p>';
-      return;
-    }
+    container.innerHTML = generateListingCardsHTML(listings);
 
-    container.innerHTML = listings.map(l => `
-      <div class="listing-card ${l.featured ? 'featured' : ''}">
-        <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
-          ${l.images && l.images.length > 0
-            ? `<img src="${l.images[0]}" alt="${l.title}">`
-            : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-                <span style="color:#b2bec3;">No Image</span></div>`}
-          ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
-        </div>
-        <div class="card-body">
-          <div class="badge-group">
-            ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
-            ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
-          </div>
-          <span class="category-badge">${formatCategory(l.category)}</span>
-          <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
-          <p><strong>📍</strong> ${l.location || 'N/A'}</p>
-          <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
-          <p class="views">🔥 ${l.views || 0} views</p>
-          <div class="card-actions">
-            <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
-            ${l.landlordWhatsApp ? 
-              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi,%20I'm%20interested%20in%20your%20property:%20${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat</a>`
-              : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
-            }
-          </div>
-        </div>
-      </div>
-    `).join('');
+    // If we loaded exactly 20 elements, unhide the action button container for the next batch
+    if (snapshot.docs.length === 20 && paginationWrapper) {
+      paginationWrapper.style.display = 'block';
+    }
 
     incrementViews(listings.map(l => l.id));
   } catch (error) {
@@ -130,6 +161,82 @@ async function loadListings(locationFilter = '', maxPriceFilter = '') {
     console.error(error);
   }
 }
+
+// 🔄 Asynchronous Workflow to Load Next 20 Elements Dynamically
+window.loadMoreListings = async () => {
+  if (!window.lastVisibleDoc || window.isFetchingMore) return;
+
+  const container = document.getElementById('listings-container');
+  const loadMoreBtn = document.getElementById('load-more-btn');
+  const paginationWrapper = document.getElementById('pagination-wrapper');
+  
+  window.isFetchingMore = true;
+  if (loadMoreBtn) {
+    loadMoreBtn.disabled = true;
+    loadMoreBtn.textContent = '⚡ Loading More...';
+  }
+
+  // Construct query starting precisely after our tracked position anchor
+  let nextPageQuery = query(
+    collection(window.db, 'listings'),
+    where('active', '==', true),
+    orderBy('featured', 'desc'),
+    orderBy('createdAt', 'desc'),
+    startAfter(window.lastVisibleDoc),
+    limit(20)
+  );
+
+  try {
+    const snapshot = await getDocs(nextPageQuery);
+    
+    if (snapshot.docs.length === 0) {
+      if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+      alert('You have reached the end of all active listings! 😎');
+      window.isFetchingMore = false;
+      return;
+    }
+
+    // Advance the visible pointer forward to track subsequent requests
+    window.lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+
+    let newNextListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // Re-apply client-side dynamic search fields if populated
+    const catFilter = window.currentCategoryFilter || '';
+    if (catFilter) newNextListings = newNextListings.filter(l => l.category === catFilter);
+    
+    const locationFilter = document.getElementById('searchLocation')?.value || '';
+    if (locationFilter) {
+      const search = locationFilter.toLowerCase();
+      newNextListings = newNextListings.filter(l => (l.location || '').toLowerCase().includes(search));
+    }
+    
+    const maxPriceFilter = document.getElementById('maxPrice')?.value || '';
+    if (maxPriceFilter) {
+      newNextListings = newNextListings.filter(l => l.price != null && l.price <= parseInt(maxPriceFilter));
+    }
+
+    // Append the newly rendered listings directly to the bottom grid without wiping out previous cards
+    if (newNextListings.length > 0) {
+      container.insertAdjacentHTML('beforeend', generateListingCardsHTML(newNextListings));
+      incrementViews(newNextListings.map(l => l.id));
+    }
+
+    // Toggle button display context visibility state criteria metrics
+    if (snapshot.docs.length < 20 && paginationWrapper) {
+      paginationWrapper.style.display = 'none';
+    }
+
+  } catch (error) {
+    console.error("Pagination structural retrieval error context:", error);
+  } finally {
+    window.isFetchingMore = false;
+    if (loadMoreBtn) {
+      loadMoreBtn.disabled = false;
+      loadMoreBtn.textContent = '🔄 Load More Listings';
+    }
+  }
+};
 
 async function incrementViews(listingIds) {
   for (const id of listingIds) {
@@ -582,6 +689,7 @@ async function loadMyListings() {
       </div>
     `).join('');
   } catch (error) {
+    // FIX: Changed trailing single quote to a backtick
     container.innerHTML = `<p class="error">Error loading your listings: ${error.message}</p>`;
     console.error(error);
   }
