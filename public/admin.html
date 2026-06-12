@@ -20,6 +20,7 @@
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --warning: #f59e0b;
+      --spotlight: #8b5cf6;
     }
 
     * {
@@ -172,6 +173,18 @@
       cursor: pointer;
       accent-color: var(--primary);
     }
+    .switch-label.spotlight input {
+      accent-color: var(--spotlight);
+    }
+    .switch-label.spotlight {
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .toggle-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
 
     .access-denied-container {
       text-align: center;
@@ -321,7 +334,6 @@
       if (!tbody) return;
 
       try {
-        // Fetch users whose listingLimit is a placeholder showing they need an audit check
         const snapshot = await getDocs(collection(db, 'users'));
         let rows = '';
         let pendingCount = 0;
@@ -330,7 +342,6 @@
           const u = userDoc.data();
           const uid = userDoc.id;
           
-          // Identify accounts requesting an verification review
           if (u.listingLimit === 10 || u.listingLimit === 9999) {
             pendingCount++;
             let tierName = u.listingLimit === 10 ? '🚀 Plus Tier (15k)' : '💎 Unlimited Agency (35k)';
@@ -425,17 +436,19 @@
               <td style="font-weight: 600; color: var(--primary);">${l.price ? l.price.toLocaleString() : '0'}</td>
               <td>🔥 ${l.views || 0}</td>
               <td>
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                  <div class="toggle-container">
-                    <label class="switch-label">
-                      <input type="checkbox" ${l.featured ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'featured', this.checked)">
-                      ⭐ Featured
-                    </label>
-                    <label class="switch-label">
-                      <input type="checkbox" ${l.verified ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'verified', this.checked)">
-                      ✅ Verified
-                    </label>
-                  </div>
+                <div class="toggle-container">
+                  <label class="switch-label spotlight">
+                    <input type="checkbox" ${l.spotlight ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'spotlight', this.checked)">
+                    🔦 Spotlight
+                  </label>
+                  <label class="switch-label">
+                    <input type="checkbox" ${l.featured ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'featured', this.checked)">
+                    ⭐ Featured
+                  </label>
+                  <label class="switch-label">
+                    <input type="checkbox" ${l.verified ? 'checked' : ''} onchange="window.toggleListingField('${id}', 'verified', this.checked)">
+                    ✅ Verified
+                  </label>
                   <button class="btn-action btn-delete" onclick="window.deleteFakeListing('${id}')">🗑️ Delete</button>
                 </div>
               </td>
@@ -451,7 +464,6 @@
     // ================= ATTACH GLOBAL ACTION HOOKS =================
     window.confirmPaymentVerified = async (uid, verifiedLimit) => {
       try {
-        // Securely confirm the package status inside Firestore
         await updateDoc(doc(db, 'users', uid), {
           listingLimit: verifiedLimit
         });

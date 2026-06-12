@@ -6,10 +6,9 @@ import {
 // ---- GLOBAL STATE ----
 window.currentSection = 'home';
 window.currentCategoryFilter = '';
-// Persistent tracker array for multiple photo additions
 window.selectedFormFiles = [];
 
-// 📉 Pagination State Variables
+// Pagination State Variables
 window.lastVisibleDoc = null; 
 window.isFetchingMore = false;
 
@@ -37,7 +36,14 @@ window.showSection = async (section) => {
 // ================= HOME PAGE =================
 async function getHomeHTML() {
   const html = `
-    <h2 style="margin-bottom:0.5rem;">Find Your Next Home</h2>
+    <div class="featured-slider-container" id="premium-hero-showcase" style="overflow: hidden; margin-bottom: 1.5rem; border-radius: 12px; background: #0f172a;">
+      <div class="slider-wrapper" id="hero-slider-track" style="position: relative; width: 100%; height: 100%;">
+        <!-- Dynamic slides injected here -->
+      </div>
+      <div class="slider-dots-container" id="hero-dots" style="text-align: center; padding: 0.5rem;"></div>
+    </div>
+
+    <h2 style="margin-bottom:0.5rem; margin-top: 2rem; color: #e2e8f0;">Find Your Next Home</h2>
     <div class="category-pills" id="category-pills">
       <button class="cat-pill active" onclick="filterByCategory('')">All</button>
       <button class="cat-pill" onclick="filterByCategory('apt_furnished')">Furnished Apartments</button>
@@ -46,12 +52,12 @@ async function getHomeHTML() {
       <button class="cat-pill" onclick="filterByCategory('house')">Houses</button>
       <button class="cat-pill" onclick="filterByCategory('hostel')">Hostels</button>
       <button class="cat-pill" onclick="filterByCategory('commercial')">Commercial</button>
-      <button class="cat-pill" onclick="land')">Land</button>
+      <button class="cat-pill" onclick="filterByCategory('land')">Land</button>
     </div>
     <div class="search-area" style="margin-top:1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
       <input type="text" id="searchLocation" placeholder="Location (e.g., Makindye)" style="flex: 1; min-width: 150px;">
       <input type="number" id="maxPrice" placeholder="Max price (UGX/month)" style="flex: 1; min-width: 150px;">
-      <select id="searchBedrooms" style="flex: 1; min-width: 120px; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; background: white; color: #1f2937;">
+      <select id="searchBedrooms" style="flex: 1; min-width: 120px; padding: 0.5rem; border-radius: 6px; border: 1px solid #334155; background: #1e293b; color: #f1f5f9;">
         <option value="">Any Bedrooms</option>
         <option value="0">0 (Studio/Single)</option>
         <option value="1">1 Bedroom</option>
@@ -72,6 +78,7 @@ async function getHomeHTML() {
   const tryLoad = () => {
     if (document.getElementById('listings-container')) {
       loadListings('', '', '');
+      loadFeaturedHeroShowcase();
     } else {
       setTimeout(tryLoad, 50);
     }
@@ -80,21 +87,93 @@ async function getHomeHTML() {
   return html;
 }
 
-// Map standard data formats directly into clean cards
+// Cinematic featured slider – NOW USES "spotlight" field
+async function loadFeaturedHeroShowcase() {
+  const track = document.getElementById('hero-slider-track');
+  const dotsContainer = document.getElementById('hero-dots');
+  if (!track) return;
+
+  try {
+    const q = query(
+      collection(window.db, 'listings'),
+      where('active', '==', true),
+      where('spotlight', '==', true),   // 👈 CHANGED FROM 'featured' TO 'spotlight'
+      limit(5)
+    );
+    const snap = await getDocs(q);
+    if (snap.docs.length === 0) {
+      document.getElementById('premium-hero-showcase').style.display = 'none';
+      return;
+    }
+
+    let slidesHTML = snap.docs.map((docSnap, index) => {
+      const item = docSnap.data();
+      const bgImage = (item.images && item.images.length > 0) ? item.images[0] : '';
+      return `
+        <div class="showcase-slide ${index === 0 ? 'active' : ''}" 
+             onclick="openDetailModal('${docSnap.id}')" 
+             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                    background: linear-gradient(0deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%), 
+                    url('${bgImage}') center/cover no-repeat;
+                    display: ${index === 0 ? 'flex' : 'none'}; align-items: flex-end; 
+                    padding: 2rem; cursor: pointer; border-radius: 12px; transition: opacity 0.8s ease;">
+          <div style="color: white; max-width: 600px;">
+            <span style="background: #8b5cf6; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">🔦 SPOTLIGHT</span>
+            <h2 style="font-size: clamp(1.2rem, 4vw, 1.8rem); margin: 0.5rem 0 0.2rem;">${item.title || 'Exclusive Property'}</h2>
+            <p style="font-size: 0.9rem; opacity: 0.9; margin: 0;">📍 ${item.location || 'Kampala'} • ${item.price ? item.price.toLocaleString() : 'N/A'} UGX/mo</p>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    track.innerHTML = slidesHTML;
+
+    let dotsHTML = snap.docs.map((_, idx) => 
+      `<span class="hero-dot ${idx === 0 ? 'active' : ''}" onclick="goToHeroSlide(${idx})" style="display: inline-block; width: 10px; height: 10px; background: ${idx === 0 ? '#8b5cf6' : '#555'}; border-radius: 50%; margin: 0 4px; cursor: pointer;"></span>`
+    ).join('');
+    if (dotsContainer) dotsContainer.innerHTML = dotsHTML;
+
+    let activeIndex = 0;
+    const slides = track.querySelectorAll('.showcase-slide');
+    const dots = dotsContainer?.querySelectorAll('.hero-dot') || [];
+    if (slides.length > 1) {
+      setInterval(() => {
+        slides[activeIndex].style.display = 'none';
+        dots[activeIndex].style.background = '#555';
+        activeIndex = (activeIndex + 1) % slides.length;
+        slides[activeIndex].style.display = 'flex';
+        dots[activeIndex].style.background = '#8b5cf6';
+      }, 4000);
+    }
+
+    window.goToHeroSlide = (index) => {
+      slides.forEach((s, i) => {
+        s.style.display = (i === index) ? 'flex' : 'none';
+        if (dots[i]) dots[i].style.background = (i === index) ? '#8b5cf6' : '#555';
+      });
+      activeIndex = index;
+    };
+
+  } catch (err) {
+    console.error("Slider loading error:", err);
+  }
+}
+
 function generateListingCardsHTML(listingsArray) {
   return listingsArray.map(l => `
     <div class="listing-card ${l.featured ? 'featured' : ''}">
       <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
         ${l.images && l.images.length > 0
           ? `<img src="${l.images[0]}" alt="${l.title}">`
-          : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-              <span style="color:#b2bec3;">No Image</span></div>`}
+          : `<div style="height:140px;background:#1e293b;display:flex;align-items:center;justify-content:center;">
+              <span style="color:#64748b;">No Image</span></div>`}
         ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
       </div>
       <div class="card-body">
         <div class="badge-group">
           ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
           ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+          ${l.spotlight ? '<span class="badge" style="background:#8b5cf6;">🔦 Spotlight</span>' : ''}
         </div>
         <span class="category-badge">${formatCategory(l.category)}</span>
         <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
@@ -118,11 +197,9 @@ async function loadListings(locationFilter = '', maxPriceFilter = '', bedroomsFi
   const paginationWrapper = document.getElementById('pagination-wrapper');
   if (!container) return;
 
-  // Reset pagination markers on every fresh baseline filter search
   window.lastVisibleDoc = null;
   if (paginationWrapper) paginationWrapper.style.display = 'none';
 
-  // Core Query bounded strictly to fetch only the first 20 records
   let q = query(
     collection(window.db, 'listings'),
     where('active', '==', true),
@@ -139,12 +216,10 @@ async function loadListings(locationFilter = '', maxPriceFilter = '', bedroomsFi
       return;
     }
 
-    // Save index pointer context tracking for subsequent pagination calls
     window.lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
 
     let listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Apply active memory filter routines
     const catFilter = window.currentCategoryFilter || '';
     if (catFilter) listings = listings.filter(l => l.category === catFilter);
     
@@ -171,7 +246,6 @@ async function loadListings(locationFilter = '', maxPriceFilter = '', bedroomsFi
 
     container.innerHTML = generateListingCardsHTML(listings);
 
-    // If we loaded exactly 20 elements, unhide the action button container for the next batch
     if (snapshot.docs.length === 20 && paginationWrapper) {
       paginationWrapper.style.display = 'block';
     }
@@ -183,7 +257,6 @@ async function loadListings(locationFilter = '', maxPriceFilter = '', bedroomsFi
   }
 }
 
-// 🔄 Asynchronous Workflow to Load Next 20 Elements Dynamically
 window.loadMoreListings = async () => {
   if (!window.lastVisibleDoc || window.isFetchingMore) return;
 
@@ -197,7 +270,6 @@ window.loadMoreListings = async () => {
     loadMoreBtn.textContent = '⚡ Loading More...';
   }
 
-  // Construct query starting precisely after our tracked position anchor
   let nextPageQuery = query(
     collection(window.db, 'listings'),
     where('active', '==', true),
@@ -217,12 +289,10 @@ window.loadMoreListings = async () => {
       return;
     }
 
-    // Advance the visible pointer forward to track subsequent requests
     window.lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
 
     let newNextListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Re-apply client-side dynamic search fields if populated
     const catFilter = window.currentCategoryFilter || '';
     if (catFilter) newNextListings = newNextListings.filter(l => l.category === catFilter);
     
@@ -247,19 +317,17 @@ window.loadMoreListings = async () => {
       }
     }
 
-    // Append the newly rendered listings directly to the bottom grid without wiping out previous cards
     if (newNextListings.length > 0) {
       container.insertAdjacentHTML('beforeend', generateListingCardsHTML(newNextListings));
       incrementViews(newNextListings.map(l => l.id));
     }
 
-    // Toggle button display context visibility state criteria metrics
     if (snapshot.docs.length < 20 && paginationWrapper) {
       paginationWrapper.style.display = 'none';
     }
 
   } catch (error) {
-    console.error("Pagination structural retrieval error context:", error);
+    console.error("Pagination error:", error);
   } finally {
     window.isFetchingMore = false;
     if (loadMoreBtn) {
@@ -341,7 +409,6 @@ async function getDashboardHTML() {
   const isAdmin = (user.email && user.email === ADMIN_EMAIL);
   const canAddListing = isAdmin || (listingCount < listingLimit);
 
-  // --- 📊 DYNAMIC ANALYTICS ENGINE FOR LANDLORDS ---
   let totalViews = 0;
   let mostPopularProperty = "None yet";
   let maxViews = -1;
@@ -368,61 +435,57 @@ async function getDashboardHTML() {
       mostPopularProperty = "No active properties";
     }
   } catch (err) {
-    console.error("Error calculating live dashboard metrics:", err);
+    console.error("Error calculating dashboard metrics:", err);
   }
 
   return `
     <h2>Welcome, Landlord!</h2>
     
     <div class="analytics-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; margin-top: 0.5rem;">
-      
-      <div style="background: #ffffff; color: #1f2937; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #10b981; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
-        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600;">🔥 Total Portfolio Views</span>
+      <div style="background: #1e293b; color: #f1f5f9; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #10b981; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">🔥 Total Portfolio Views</span>
         <strong style="font-size: 1.8rem; color: #10b981; margin-top: 0.2rem;">${totalViews.toLocaleString()}</strong>
       </div>
 
-      <div style="background: #ffffff; color: #1f2937; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
-        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600;">🏆 Most Popular Property</span>
-        <strong style="font-size: 1.1rem; color: #1f2937; margin-top: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${mostPopularProperty}">
+      <div style="background: #1e293b; color: #f1f5f9; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">🏆 Most Popular Property</span>
+        <strong style="font-size: 1.1rem; color: #f1f5f9; margin-top: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${mostPopularProperty}">
           ${mostPopularProperty}
         </strong>
         ${maxViews > -1 ? `<span style="font-size: 0.75rem; color: #3b82f6; font-weight: bold; margin-top: 0.1rem;">(${maxViews} views)</span>` : ''}
       </div>
 
-      <div style="background: #ffffff; color: #1f2937; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #f59e0b; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
-        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600;">📋 Listing Slots Used</span>
-        <strong style="font-size: 1.5rem; color: #f59e0b; margin-top: 0.2rem;">${listingCount} <span style="font-size: 0.9rem; font-weight: 400; color: #6b7280;">/ ${isAdmin ? '∞' : listingLimit}</span></strong>
+      <div style="background: #1e293b; color: #f1f5f9; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #f59e0b; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">📋 Listing Slots Used</span>
+        <strong style="font-size: 1.5rem; color: #f59e0b; margin-top: 0.2rem;">${listingCount} <span style="font-size: 0.9rem; font-weight: 400; color: #94a3b8;">/ ${isAdmin ? '∞' : listingLimit}</span></strong>
       </div>
-
     </div>
 
     <div class="premium-pricing-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-      
-      <div style="background:#ffffff; color:#1f2937; padding:1.5rem; border-radius:12px; border:1px solid #e5e7eb; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+      <div style="background:#1e293b; color:#f1f5f9; padding:1.5rem; border-radius:12px; border:1px solid #334155; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
         <div>
-          <h3 style="color:#1f2937; font-size:1.25rem; margin-bottom:0.5rem;">🚀 Plus Landlord</h3>
-          <p style="color:#4b5563; font-size:0.9rem; margin-bottom:1rem;">Increase your account capacity to manage and post up to 10 rental listings simultaneously.</p>
-          <div style="font-size:1.75rem; font-weight:700; color:#10b981; margin-bottom:1rem;">15,000 UGX <span style="font-size:0.85rem; font-weight:400; color:#6b7280;">one-time</span></div>
+          <h3 style="color:#f1f5f9; font-size:1.25rem; margin-bottom:0.5rem;">🚀 Plus Landlord</h3>
+          <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:1rem;">Increase your account capacity to manage and post up to 10 rental listings simultaneously.</p>
+          <div style="font-size:1.75rem; font-weight:700; color:#10b981; margin-bottom:1rem;">15,000 UGX <span style="font-size:0.85rem; font-weight:400; color:#94a3b8;">one-time</span></div>
         </div>
         <button class="primary" style="width:100%; border-radius:6px; padding:0.6rem;" onclick="window.payWithMobileMoney(15000, 'plus_tier')">Upgrade Limit Now</button>
       </div>
 
-      <div style="background:#ffffff; color:#1f2937; padding:1.5rem; border-radius:12px; border:2px solid #10b981; display:flex; flex-direction:column; justify-content:space-between; position:relative; box-shadow:0 4px 10px rgba(16,185,129,0.15);">
+      <div style="background:#1e293b; color:#f1f5f9; padding:1.5rem; border-radius:12px; border:2px solid #10b981; display:flex; flex-direction:column; justify-content:space-between; position:relative; box-shadow:0 4px 10px rgba(16,185,129,0.15);">
         <span style="position:absolute; top:-12px; right:15px; background:#10b981; color:#ffffff; font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:12px; text-transform:uppercase;">Best Value</span>
         <div>
-          <h3 style="color:#1f2937; font-size:1.25rem; margin-bottom:0.5rem;">💎 Unlimited Agency</h3>
-          <p style="color:#4b5563; font-size:0.9rem; margin-bottom:1rem;">Perfect for commercial real estate agents. Unlock completely unlimited property listings.</p>
-          <div style="font-size:1.75rem; font-weight:700; color:#10b981; margin-bottom:1rem;">35,000 UGX <span style="font-size:0.85rem; font-weight:400; color:#6b7280;">one-time</span></div>
+          <h3 style="color:#f1f5f9; font-size:1.25rem; margin-bottom:0.5rem;">💎 Unlimited Agency</h3>
+          <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:1rem;">Perfect for commercial real estate agents. Unlock completely unlimited property listings.</p>
+          <div style="font-size:1.75rem; font-weight:700; color:#10b981; margin-bottom:1rem;">35,000 UGX <span style="font-size:0.85rem; font-weight:400; color:#94a3b8;">one-time</span></div>
         </div>
         <button class="primary" style="width:100%; border-radius:6px; padding:0.6rem;" onclick="window.payWithMobileMoney(35000, 'unlimited_tier')">Go Unlimited</button>
       </div>
-
     </div>
 
     ${canAddListing ? `
       <button class="primary" onclick="showAddListingForm()">+ Add New Listing</button>
     ` : `
-      <div class="upgrade-message" style="background:#fef2f2; color:#991b1b; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; border:1px solid #fca5a5;">
+      <div class="upgrade-message" style="background:#7f1d1d; color:#fca5a5; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; border:1px solid #b91c1c;">
         <p style="font-weight:600; margin-bottom:0.5rem;">⚠️ Out of Free Slots!</p>
         <p style="margin-bottom:0; font-size:0.95rem;">You have hit your free profile limit. Use one of the premium mobile money cards above to unlock instant slots, or contact us directly below.</p>
         <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I%20want%20to%20upgrade%20my%20listing%20limit%20on%20${APP_NAME}" target="_blank" class="wa-btn primary" style="margin-top:1rem; display:inline-block;">💬 Upgrade via WhatsApp Manual</a>
@@ -455,7 +518,7 @@ async function getDashboardHTML() {
         <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
           <input type="file" id="new-images" accept="image/*" style="display: none;">
           <button type="button" class="secondary" style="margin: 0; padding: 0.5rem 1rem;" onclick="document.getElementById('new-images').click()">📸 Choose Photo</button>
-          <span id="photo-count-badge" style="font-size: 0.9rem; color: #6b7280; font-weight: 600;">0 photos selected</span>
+          <span id="photo-count-badge" style="font-size: 0.9rem; color: #94a3b8; font-weight: 600;">0 photos selected</span>
         </div>
         <div class="image-preview" id="image-preview" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px;"></div>
       </div>
@@ -463,7 +526,7 @@ async function getDashboardHTML() {
       <button class="primary" onclick="addListing()">Submit Listing</button>
       <button class="secondary" onclick="document.getElementById('add-listing-form').style.display='none'">Cancel</button>
     </div>
-    <h3 style="margin:1.5rem 0 0.5rem;">Your Listings</h3>
+    <h3 style="margin:1.5rem 0 0.5rem; color: #e2e8f0;">Your Listings</h3>
     <div id="my-listings" class="listings-grid">Loading...</div>
   `;
 }
@@ -479,8 +542,6 @@ window.payWithMobileMoney = async function(amount, packageTier) {
   const userEmail = user.email || 'customer@housefinder.ug';
   const uniqueReference = "HF-UG-" + user.uid + "-" + Date.now();
 
-  console.log(`Initializing Pesapal Handshake for ${packageTier}: ${amount} UGX`);
-
   try {
     const authResponse = await fetch('https://pay.pesapal.com/v3/api/Auth/RequestToken', {
       method: 'POST',
@@ -495,7 +556,7 @@ window.payWithMobileMoney = async function(amount, packageTier) {
     });
     
     const authData = await authResponse.json();
-    if (!authData.token) throw new Error("CORS validation or API handshake mismatch.");
+    if (!authData.token) throw new Error("Handshake mismatch.");
 
     const orderPayload = {
       "id": uniqueReference,
@@ -530,12 +591,9 @@ window.payWithMobileMoney = async function(amount, packageTier) {
     }
 
   } catch (error) {
-    console.warn("Direct API blocked by frontend browser security policy rules. Serving robust manual gateway fallback.");
-    
     let targetLimit = 2;
     if (packageTier === 'plus_tier') targetLimit = 10;
     if (packageTier === 'unlimited_tier') targetLimit = 9999;
-    if (packageTier === 'boost_feature') targetLimit = 'boosted';
 
     const userPrompt = confirm(
       `🇺🇬 HOUSEFINDER UGANDA MOBILE MONEY PAYMENT\n\n` +
@@ -563,10 +621,9 @@ window.payWithMobileMoney = async function(amount, packageTier) {
   }
 };
 
-// ================= CUMULATIVE MULTI-IMAGE HANDLERS =================
+// ================= MULTI-IMAGE HANDLERS =================
 window.showAddListingForm = () => {
   document.getElementById('add-listing-form').style.display = 'block';
-  
   window.selectedFormFiles = [];
   const previewContainer = document.getElementById('image-preview');
   const countBadge = document.getElementById('photo-count-badge');
@@ -589,7 +646,7 @@ window.showAddListingForm = () => {
         const reader = new FileReader();
         reader.onload = (event) => {
           const imageCardHTML = `
-            <div id="prev-card-${currentIdx}" style="position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div id="prev-card-${currentIdx}" style="position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
               <img src="${event.target.result}" style="width: 100%; height: 100%; object-fit: cover;">
               <button type="button" onclick="window.removeSelectedPhoto(${currentIdx})" style="position: absolute; top: 2px; right: 2px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1;">&times;</button>
             </div>
@@ -618,7 +675,6 @@ window.removeSelectedPhoto = (index) => {
   if (countBadge) countBadge.textContent = `${activeCount} photos selected`;
 };
 
-// ================= STABLE ASYNC SEQUENTIAL MULTI-IMAGE UPLOADER =================
 window.addListing = async () => {
   const user = window.auth.currentUser;
   if (!user) { alert('You must be logged in.'); return; }
@@ -655,7 +711,6 @@ window.addListing = async () => {
     if (validFiles.length > 0) {
       for (let i = 0; i < validFiles.length; i++) {
         const file = validFiles[i];
-        
         if (submitBtn) submitBtn.textContent = `Uploading photo ${i + 1} of ${validFiles.length}…`;
 
         const base64Data = await new Promise((resolve, reject) => {
@@ -672,15 +727,14 @@ window.addListing = async () => {
         });
 
         if (!response.ok) {
-          throw new Error(`Vercel pipeline rejected image index ${i + 1}. Server status code: ${response.status}`);
+          throw new Error(`Pipeline rejected image index ${i + 1}. Server status code: ${response.status}`);
         }
 
         const data = await response.json();
-        
         if (data.url) { 
           imageURLs.push(data.url); 
         } else { 
-          throw new Error(data.error || `Upload array structural error returned at position ${i}`); 
+          throw new Error(data.error || `Upload error at position ${i}`); 
         }
       }
     }
@@ -696,6 +750,7 @@ window.addListing = async () => {
       active: true,
       featured: false,
       verified: false,
+      spotlight: false,         // 👈 NEW SPOTLIGHT FIELD
       views: 0,
       createdAt: new Date()
     });
@@ -709,7 +764,6 @@ window.addListing = async () => {
     alert('Property posted successfully with all selected photos!');
   } catch (error) {
     alert('Image Pipeline Error: ' + error.message);
-    console.error("Upload failure debug vector info:", error);
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false; 
@@ -742,14 +796,15 @@ async function loadMyListings() {
         <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
           ${l.images && l.images.length > 0
             ? `<img src="${l.images[0]}" alt="${l.title}">`
-            : `<div style="height:140px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">
-                <span style="color:#b2bec3;">No Image</span></div>`}
+            : `<div style="height:140px;background:#1e293b;display:flex;align-items:center;justify-content:center;">
+                <span style="color:#64748b;">No Image</span></div>`}
           ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
         </div>
         <div class="card-body">
           <div class="badge-group">
             ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
             ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
+            ${l.spotlight ? '<span class="badge" style="background:#8b5cf6;">🔦 Spotlight</span>' : ''}
           </div>
           <span class="category-badge">${formatCategory(l.category)}</span>
           <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
@@ -763,7 +818,6 @@ async function loadMyListings() {
               ${l.active ? 'Mark as Rented' : 'Mark as Available'}
             </button>
           </div>
-          
           ${!l.featured ? `
             <button class="primary" style="background:#d97706; padding:0.4rem 0.8rem; font-size:0.8rem; width:100%; margin-top:0.5rem; border-radius:6px;" onclick="window.payWithMobileMoney(5000, 'boost_feature')">⭐ Highlight Property (5,000 UGX)</button>
           ` : ''}
@@ -782,7 +836,7 @@ window.toggleListing = async (id, newStatus) => {
   loadListings();
 };
 
-// ================= DETAIL MODAL =================
+// ================= DETAIL MODAL (IMAGE GALLERY) =================
 window.openDetailModal = async (listingId) => {
   const ref = doc(window.db, 'listings', listingId);
   const snap = await getDoc(ref);
@@ -805,7 +859,7 @@ window.openDetailModal = async (listingId) => {
     window._modalImages = l.images;
     window._modalIndex = 0;
   } else {
-    imagesHTML = `<div style="height:200px;background:#dfe6e9;display:flex;align-items:center;justify-content:center;">No Image</div>`;
+    imagesHTML = `<div style="height:200px;background:#0f172a;display:flex;align-items:center;justify-content:center;">No Image</div>`;
   }
 
   const modalHTML = `
