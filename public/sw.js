@@ -1,4 +1,4 @@
-const CACHE_NAME = 'housefinder-cache-v2';
+const CACHE_NAME = 'housefinder-cache-v3';
 
 // 1. Force the updated service worker to activate immediately without waiting
 self.addEventListener('install', (event) => {

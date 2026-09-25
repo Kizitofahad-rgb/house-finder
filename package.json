@@ -4,6 +4,7 @@
     "node": "20.x"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "cloudinary": "^1.41.3"
   }
 }

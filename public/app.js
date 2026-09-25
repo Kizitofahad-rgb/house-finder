@@ -1,21 +1,12 @@
-import {
-  collection, addDoc, getDocs, query, where, orderBy, limit, startAfter,
-  doc, getDoc, updateDoc, increment
-} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { supabase } from './supabase-client.js';
 
 // ---- GLOBAL STATE ----
 window.currentSection = 'home';
 window.currentCategoryFilter = '';
 window.selectedFormFiles = [];
 
-// Pagination State Variables
-window.lastVisibleDoc = null; 
-window.isFetchingMore = false;
-
 // ---- CONFIG ----
-const YOUR_WHATSAPP_NUMBER = '256775989760';
 const APP_NAME = 'HouseFinder';
-const ADMIN_EMAIL = 'kizitofahad665@gmail.com';
 
 // ---- ROUTER ----
 window.showSection = async (section) => {
@@ -37,9 +28,7 @@ window.showSection = async (section) => {
 async function getHomeHTML() {
   const html = `
     <div class="featured-slider-container" id="premium-hero-showcase" style="overflow: hidden; margin-bottom: 1.5rem; border-radius: 12px; background: #0f172a;">
-      <div class="slider-wrapper" id="hero-slider-track" style="position: relative; width: 100%; height: 100%;">
-        <!-- Dynamic slides injected here -->
-      </div>
+      <div class="slider-wrapper" id="hero-slider-track" style="position: relative; width: 100%; height: 100%;"></div>
       <div class="slider-dots-container" id="hero-dots" style="text-align: center; padding: 0.5rem;"></div>
     </div>
 
@@ -68,12 +57,6 @@ async function getHomeHTML() {
       <button onclick="searchListings()">Search</button>
     </div>
     <div id="listings-container" class="listings-grid">Loading...</div>
-    
-    <div id="pagination-wrapper" style="text-align: center; margin: 2.5rem 0 1rem; display: none;">
-      <button id="load-more-btn" onclick="window.loadMoreListings()" style="background: #10b981; color: #ffffff; border: none; padding: 12px 30px; font-weight: 700; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-        🔄 Load More Listings
-      </button>
-    </div>
   `;
   const tryLoad = () => {
     if (document.getElementById('listings-container')) {
@@ -87,40 +70,42 @@ async function getHomeHTML() {
   return html;
 }
 
-// Cinematic featured slider – NOW USES "spotlight" field
+// Cinematic featured slider — uses "spotlight" field
 async function loadFeaturedHeroShowcase() {
   const track = document.getElementById('hero-slider-track');
   const dotsContainer = document.getElementById('hero-dots');
   if (!track) return;
 
   try {
-    const q = query(
-      collection(window.db, 'listings'),
-      where('active', '==', true),
-      where('spotlight', '==', true),   // 👈 CHANGED FROM 'featured' TO 'spotlight'
-      limit(5)
-    );
-    const snap = await getDocs(q);
-    if (snap.docs.length === 0) {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, title, location, price, images')
+      .eq('active', true)
+      .eq('status', 'published')
+      .eq('spotlight', true)
+      .limit(5);
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
       document.getElementById('premium-hero-showcase').style.display = 'none';
       return;
     }
 
-    let slidesHTML = snap.docs.map((docSnap, index) => {
-      const item = docSnap.data();
+    let slidesHTML = data.map((item, index) => {
       const bgImage = (item.images && item.images.length > 0) ? item.images[0] : '';
       return `
-        <div class="showcase-slide ${index === 0 ? 'active' : ''}" 
-             onclick="openDetailModal('${docSnap.id}')" 
-             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-                    background: linear-gradient(0deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%), 
+        <div class="showcase-slide ${index === 0 ? 'active' : ''}"
+             onclick="openDetailModal('${item.id}')"
+             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                    background: linear-gradient(0deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%),
                     url('${bgImage}') center/cover no-repeat;
-                    display: ${index === 0 ? 'flex' : 'none'}; align-items: flex-end; 
+                    display: ${index === 0 ? 'flex' : 'none'}; align-items: flex-end;
                     padding: 2rem; cursor: pointer; border-radius: 12px; transition: opacity 0.8s ease;">
           <div style="color: white; max-width: 600px;">
-            <span style="background: #8b5cf6; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">🔦 SPOTLIGHT</span>
+            <span style="background: #8b5cf6; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">SPOTLIGHT</span>
             <h2 style="font-size: clamp(1.2rem, 4vw, 1.8rem); margin: 0.5rem 0 0.2rem;">${item.title || 'Exclusive Property'}</h2>
-            <p style="font-size: 0.9rem; opacity: 0.9; margin: 0;">📍 ${item.location || 'Kampala'} • ${item.price ? item.price.toLocaleString() : 'N/A'} UGX/mo</p>
+            <p style="font-size: 0.9rem; opacity: 0.9; margin: 0;">${item.location || 'Kampala'} • ${item.price ? item.price.toLocaleString() : 'N/A'} UGX/mo</p>
           </div>
         </div>
       `;
@@ -128,7 +113,7 @@ async function loadFeaturedHeroShowcase() {
 
     track.innerHTML = slidesHTML;
 
-    let dotsHTML = snap.docs.map((_, idx) => 
+    let dotsHTML = data.map((_, idx) =>
       `<span class="hero-dot ${idx === 0 ? 'active' : ''}" onclick="goToHeroSlide(${idx})" style="display: inline-block; width: 10px; height: 10px; background: ${idx === 0 ? '#8b5cf6' : '#555'}; border-radius: 50%; margin: 0 4px; cursor: pointer;"></span>`
     ).join('');
     if (dotsContainer) dotsContainer.innerHTML = dotsHTML;
@@ -155,7 +140,7 @@ async function loadFeaturedHeroShowcase() {
     };
 
   } catch (err) {
-    console.error("Slider loading error:", err);
+    console.error('Slider loading error:', err);
   }
 }
 
@@ -167,24 +152,24 @@ function generateListingCardsHTML(listingsArray) {
           ? `<img src="${l.images[0]}" alt="${l.title}">`
           : `<div style="height:140px;background:#1e293b;display:flex;align-items:center;justify-content:center;">
               <span style="color:#64748b;">No Image</span></div>`}
-        ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
+        ${l.images && l.images.length > 1 ? `<span class="photo-count">${l.images.length} photos</span>` : ''}
       </div>
       <div class="card-body">
         <div class="badge-group">
-          ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
-          ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
-          ${l.spotlight ? '<span class="badge" style="background:#8b5cf6;">🔦 Spotlight</span>' : ''}
+          ${l.featured ? '<span class="badge badge-featured">Featured</span>' : ''}
+          ${l.verified ? '<span class="badge badge-verified">Verified</span>' : ''}
+          ${l.spotlight ? '<span class="badge" style="background:#8b5cf6;">Spotlight</span>' : ''}
         </div>
         <span class="category-badge">${formatCategory(l.category)}</span>
         <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
-        <p><strong>📍</strong> ${l.location || 'N/A'}</p>
+        <p>${l.location || 'N/A'}</p>
         <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
-        <p class="views">🔥 ${l.views || 0} views</p>
+        <p class="views">${l.views || 0} views</p>
         <div class="card-actions">
-          <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
-          ${l.landlordWhatsApp ? 
-            `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi,%20I'm%20interested%20in%20your%20property:%20${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat</a>`
-            : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
+          <button class="secondary" onclick="openDetailModal('${l.id}')">View</button>
+          ${l.landlord_whatsapp ?
+            `<a href="https://wa.me/${l.landlord_whatsapp}?text=Hi,%20I'm%20interested%20in%20your%20property:%20${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">Chat</a>`
+            : `<span>${l.landlord_phone || 'N/A'}</span>`
           }
         </div>
       </div>
@@ -194,153 +179,48 @@ function generateListingCardsHTML(listingsArray) {
 
 async function loadListings(locationFilter = '', maxPriceFilter = '', bedroomsFilter = '') {
   const container = document.getElementById('listings-container');
-  const paginationWrapper = document.getElementById('pagination-wrapper');
   if (!container) return;
 
-  window.lastVisibleDoc = null;
-  if (paginationWrapper) paginationWrapper.style.display = 'none';
+  let query = supabase
+    .from('listings')
+    .select('id, title, description, category, location, price, bedrooms, images, featured, verified, spotlight, views, active, landlord_whatsapp, landlord_phone, status')
+    .eq('active', true)
+    .eq('status', 'published')
+    .order('featured', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(20);
 
-  let q = query(
-    collection(window.db, 'listings'),
-    where('active', '==', true),
-    orderBy('featured', 'desc'),
-    orderBy('createdAt', 'desc'),
-    limit(20)
-  );
+  const catFilter = window.currentCategoryFilter || '';
+  if (catFilter) query = query.eq('category', catFilter);
+
+  if (locationFilter) {
+    query = query.ilike('location', `%${locationFilter}%`);
+  }
+  if (maxPriceFilter) {
+    query = query.lte('price', parseInt(maxPriceFilter));
+  }
+  if (bedroomsFilter !== '') {
+    const bCount = parseInt(bedroomsFilter);
+    if (bCount === 4) {
+      query = query.gte('bedrooms', 4);
+    } else {
+      query = query.eq('bedrooms', bCount);
+    }
+  }
 
   try {
-    const snapshot = await getDocs(q);
-    
-    if (snapshot.docs.length === 0) {
+    const { data, error } = await query;
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
       container.innerHTML = '<p>No listings found. Try a different filter.</p>';
       return;
     }
 
-    window.lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-
-    let listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    const catFilter = window.currentCategoryFilter || '';
-    if (catFilter) listings = listings.filter(l => l.category === catFilter);
-    
-    if (locationFilter) {
-      const search = locationFilter.toLowerCase();
-      listings = listings.filter(l => (l.location || '').toLowerCase().includes(search));
-    }
-    if (maxPriceFilter) {
-      listings = listings.filter(l => l.price != null && l.price <= parseInt(maxPriceFilter));
-    }
-    if (bedroomsFilter !== '') {
-      const bCount = parseInt(bedroomsFilter);
-      if (bCount === 4) {
-        listings = listings.filter(l => l.bedrooms >= 4);
-      } else {
-        listings = listings.filter(l => l.bedrooms === bCount);
-      }
-    }
-
-    if (listings.length === 0) {
-      container.innerHTML = '<p>No listings match your combined filters. Try broadening your criteria.</p>';
-      return;
-    }
-
-    container.innerHTML = generateListingCardsHTML(listings);
-
-    if (snapshot.docs.length === 20 && paginationWrapper) {
-      paginationWrapper.style.display = 'block';
-    }
-
-    incrementViews(listings.map(l => l.id));
+    container.innerHTML = generateListingCardsHTML(data);
   } catch (error) {
     container.innerHTML = `<p class="error">Error loading listings: ${error.message}</p>`;
     console.error(error);
-  }
-}
-
-window.loadMoreListings = async () => {
-  if (!window.lastVisibleDoc || window.isFetchingMore) return;
-
-  const container = document.getElementById('listings-container');
-  const loadMoreBtn = document.getElementById('load-more-btn');
-  const paginationWrapper = document.getElementById('pagination-wrapper');
-  
-  window.isFetchingMore = true;
-  if (loadMoreBtn) {
-    loadMoreBtn.disabled = true;
-    loadMoreBtn.textContent = '⚡ Loading More...';
-  }
-
-  let nextPageQuery = query(
-    collection(window.db, 'listings'),
-    where('active', '==', true),
-    orderBy('featured', 'desc'),
-    orderBy('createdAt', 'desc'),
-    startAfter(window.lastVisibleDoc),
-    limit(20)
-  );
-
-  try {
-    const snapshot = await getDocs(nextPageQuery);
-    
-    if (snapshot.docs.length === 0) {
-      if (loadMoreBtn) loadMoreBtn.style.display = 'none';
-      alert('You have reached the end of all active listings! 😎');
-      window.isFetchingMore = false;
-      return;
-    }
-
-    window.lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-
-    let newNextListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    const catFilter = window.currentCategoryFilter || '';
-    if (catFilter) newNextListings = newNextListings.filter(l => l.category === catFilter);
-    
-    const locationFilter = document.getElementById('searchLocation')?.value || '';
-    if (locationFilter) {
-      const search = locationFilter.toLowerCase();
-      newNextListings = newNextListings.filter(l => (l.location || '').toLowerCase().includes(search));
-    }
-    
-    const maxPriceFilter = document.getElementById('maxPrice')?.value || '';
-    if (maxPriceFilter) {
-      newNextListings = newNextListings.filter(l => l.price != null && l.price <= parseInt(maxPriceFilter));
-    }
-
-    const bedroomsFilter = document.getElementById('searchBedrooms')?.value || '';
-    if (bedroomsFilter !== '') {
-      const bCount = parseInt(bedroomsFilter);
-      if (bCount === 4) {
-        newNextListings = newNextListings.filter(l => l.bedrooms >= 4);
-      } else {
-        newNextListings = newNextListings.filter(l => l.bedrooms === bCount);
-      }
-    }
-
-    if (newNextListings.length > 0) {
-      container.insertAdjacentHTML('beforeend', generateListingCardsHTML(newNextListings));
-      incrementViews(newNextListings.map(l => l.id));
-    }
-
-    if (snapshot.docs.length < 20 && paginationWrapper) {
-      paginationWrapper.style.display = 'none';
-    }
-
-  } catch (error) {
-    console.error("Pagination error:", error);
-  } finally {
-    window.isFetchingMore = false;
-    if (loadMoreBtn) {
-      loadMoreBtn.disabled = false;
-      loadMoreBtn.textContent = '🔄 Load More Listings';
-    }
-  }
-};
-
-async function incrementViews(listingIds) {
-  for (const id of listingIds) {
-    const ref = doc(window.db, 'listings', id);
-    try { await updateDoc(ref, { views: increment(1) }); } catch (e) {}
   }
 }
 
@@ -393,62 +273,58 @@ function getSignupHTML() {
     </div>`;
 }
 
-// ================= LANDLORD DASHBOARD & PAYMENTS =================
+// ================= LANDLORD DASHBOARD =================
 async function getDashboardHTML() {
-  const user = window.auth.currentUser;
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return '<p>Please login first.</p>';
 
-  const userDoc = await getDoc(doc(window.db, 'users', user.uid));
-  if (!userDoc.exists() || userDoc.data().role !== 'landlord') {
-    return '<p class="error">Access denied. Only landlords can view this page.</p>';
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, full_name, phone')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    return '<p class="error">Could not load your profile. Please try again.</p>';
   }
 
-  const userData = userDoc.data();
-  const listingCount = userData.listingCount || 0;
-  const listingLimit = userData.listingLimit || 2;
-  const isAdmin = (user.email && user.email === ADMIN_EMAIL);
-  const canAddListing = isAdmin || (listingCount < listingLimit);
+  if (profile.role !== 'landlord' && profile.role !== 'agent') {
+    return '<p class="error">Access denied. Only landlords and agents can view this page.</p>';
+  }
+
+  const { data: myListings, error: listingsError } = await supabase
+    .from('listings')
+    .select('id, title, views, active, featured, verified, spotlight, status')
+    .eq('created_by', user.id)
+    .order('created_at', { ascending: false });
 
   let totalViews = 0;
-  let mostPopularProperty = "None yet";
+  let mostPopularProperty = 'No active properties';
   let maxViews = -1;
 
-  try {
-    const q = query(
-      collection(window.db, 'listings'),
-      where('landlordId', '==', user.uid)
-    );
-    const snapshot = await getDocs(q);
-    
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const views = data.views || 0;
+  if (!listingsError && myListings) {
+    myListings.forEach(l => {
+      const views = l.views || 0;
       totalViews += views;
-      
       if (views > maxViews) {
         maxViews = views;
-        mostPopularProperty = data.title || "Untitled Property";
+        mostPopularProperty = l.title || 'Untitled Property';
       }
     });
-    
-    if (snapshot.docs.length === 0) {
-      mostPopularProperty = "No active properties";
-    }
-  } catch (err) {
-    console.error("Error calculating dashboard metrics:", err);
+    if (myListings.length === 0) mostPopularProperty = 'No active properties';
   }
 
   return `
-    <h2>Welcome, Landlord!</h2>
-    
+    <h2>Welcome, ${profile.full_name || 'Landlord'}!</h2>
+
     <div class="analytics-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; margin-top: 0.5rem;">
       <div style="background: #1e293b; color: #f1f5f9; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #10b981; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
-        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">🔥 Total Portfolio Views</span>
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">Total Portfolio Views</span>
         <strong style="font-size: 1.8rem; color: #10b981; margin-top: 0.2rem;">${totalViews.toLocaleString()}</strong>
       </div>
 
       <div style="background: #1e293b; color: #f1f5f9; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
-        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">🏆 Most Popular Property</span>
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">Most Popular Property</span>
         <strong style="font-size: 1.1rem; color: #f1f5f9; margin-top: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${mostPopularProperty}">
           ${mostPopularProperty}
         </strong>
@@ -456,41 +332,12 @@ async function getDashboardHTML() {
       </div>
 
       <div style="background: #1e293b; color: #f1f5f9; padding: 1.25rem; border-radius: 12px; border-left: 5px solid #f59e0b; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: center;">
-        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">📋 Listing Slots Used</span>
-        <strong style="font-size: 1.5rem; color: #f59e0b; margin-top: 0.2rem;">${listingCount} <span style="font-size: 0.9rem; font-weight: 400; color: #94a3b8;">/ ${isAdmin ? '∞' : listingLimit}</span></strong>
+        <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; font-weight: 600;">Total Listings</span>
+        <strong style="font-size: 1.5rem; color: #f59e0b; margin-top: 0.2rem;">${myListings?.length || 0}</strong>
       </div>
     </div>
 
-    <div class="premium-pricing-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-      <div style="background:#1e293b; color:#f1f5f9; padding:1.5rem; border-radius:12px; border:1px solid #334155; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
-        <div>
-          <h3 style="color:#f1f5f9; font-size:1.25rem; margin-bottom:0.5rem;">🚀 Plus Landlord</h3>
-          <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:1rem;">Increase your account capacity to manage and post up to 10 rental listings simultaneously.</p>
-          <div style="font-size:1.75rem; font-weight:700; color:#10b981; margin-bottom:1rem;">15,000 UGX <span style="font-size:0.85rem; font-weight:400; color:#94a3b8;">one-time</span></div>
-        </div>
-        <button class="primary" style="width:100%; border-radius:6px; padding:0.6rem;" onclick="window.payWithMobileMoney(15000, 'plus_tier')">Upgrade Limit Now</button>
-      </div>
-
-      <div style="background:#1e293b; color:#f1f5f9; padding:1.5rem; border-radius:12px; border:2px solid #10b981; display:flex; flex-direction:column; justify-content:space-between; position:relative; box-shadow:0 4px 10px rgba(16,185,129,0.15);">
-        <span style="position:absolute; top:-12px; right:15px; background:#10b981; color:#ffffff; font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:12px; text-transform:uppercase;">Best Value</span>
-        <div>
-          <h3 style="color:#f1f5f9; font-size:1.25rem; margin-bottom:0.5rem;">💎 Unlimited Agency</h3>
-          <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:1rem;">Perfect for commercial real estate agents. Unlock completely unlimited property listings.</p>
-          <div style="font-size:1.75rem; font-weight:700; color:#10b981; margin-bottom:1rem;">35,000 UGX <span style="font-size:0.85rem; font-weight:400; color:#94a3b8;">one-time</span></div>
-        </div>
-        <button class="primary" style="width:100%; border-radius:6px; padding:0.6rem;" onclick="window.payWithMobileMoney(35000, 'unlimited_tier')">Go Unlimited</button>
-      </div>
-    </div>
-
-    ${canAddListing ? `
-      <button class="primary" onclick="showAddListingForm()">+ Add New Listing</button>
-    ` : `
-      <div class="upgrade-message" style="background:#7f1d1d; color:#fca5a5; padding:1.25rem; border-radius:8px; margin-bottom:1.5rem; border:1px solid #b91c1c;">
-        <p style="font-weight:600; margin-bottom:0.5rem;">⚠️ Out of Free Slots!</p>
-        <p style="margin-bottom:0; font-size:0.95rem;">You have hit your free profile limit. Use one of the premium mobile money cards above to unlock instant slots, or contact us directly below.</p>
-        <a href="https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=I%20want%20to%20upgrade%20my%20listing%20limit%20on%20${APP_NAME}" target="_blank" class="wa-btn primary" style="margin-top:1rem; display:inline-block;">💬 Upgrade via WhatsApp Manual</a>
-      </div>
-    `}
+    <button class="primary" onclick="showAddListingForm()">+ Add New Listing</button>
 
     <div id="add-listing-form" class="dashboard-form" style="display:none;">
       <h3>New Listing</h3>
@@ -498,8 +345,8 @@ async function getDashboardHTML() {
       <div class="form-group"><label>Location</label><input id="new-location" placeholder="e.g., Makindye"></div>
       <div class="form-group"><label>Category</label>
         <select id="new-category">
-          <option value="apt_furnished">Apartment – Furnished</option>
-          <option value="apt_unfurnished">Apartment – Unfurnished</option>
+          <option value="apt_furnished">Apartment - Furnished</option>
+          <option value="apt_unfurnished">Apartment - Unfurnished</option>
           <option value="single_room">Single Room</option>
           <option value="house">Full House</option>
           <option value="hostel">Hostel / Boarding</option>
@@ -509,15 +356,16 @@ async function getDashboardHTML() {
       </div>
       <div class="form-group"><label>Bedrooms</label><input id="new-bedrooms" type="number" value="1"></div>
       <div class="form-group"><label>Price (UGX/month)</label><input id="new-price" type="number" value="500000"></div>
-      <div class="form-group"><label>Contact Email</label><input id="new-contact" type="email"></div>
+      <div class="form-group"><label>Landlord Name</label><input id="new-landlord-name" placeholder="Your name"></div>
+      <div class="form-group"><label>Landlord Phone</label><input id="new-landlord-phone" placeholder="e.g., 0775989760"></div>
       <div class="form-group"><label>WhatsApp Number (optional, e.g., 256712345678)</label><input id="new-whatsapp" type="text" placeholder="256..."></div>
       <div class="form-group"><label>Description</label><textarea id="new-description"></textarea></div>
-      
+
       <div class="form-group">
         <label>Property Photos</label>
         <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center;">
           <input type="file" id="new-images" accept="image/*" style="display: none;">
-          <button type="button" class="secondary" style="margin: 0; padding: 0.5rem 1rem;" onclick="document.getElementById('new-images').click()">📸 Choose Photo</button>
+          <button type="button" class="secondary" style="margin: 0; padding: 0.5rem 1rem;" onclick="document.getElementById('new-images').click()">Choose Photo</button>
           <span id="photo-count-badge" style="font-size: 0.9rem; color: #94a3b8; font-weight: 600;">0 photos selected</span>
         </div>
         <div class="image-preview" id="image-preview" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px;"></div>
@@ -530,96 +378,6 @@ async function getDashboardHTML() {
     <div id="my-listings" class="listings-grid">Loading...</div>
   `;
 }
-
-// ================= PESAPAL V3 PAYMENT GATEWAY HANDLER =================
-window.payWithMobileMoney = async function(amount, packageTier) {
-  const user = window.auth.currentUser;
-  if (!user) {
-    alert("Please sign in to process payment tier integrations.");
-    return;
-  }
-
-  const userEmail = user.email || 'customer@housefinder.ug';
-  const uniqueReference = "HF-UG-" + user.uid + "-" + Date.now();
-
-  try {
-    const authResponse = await fetch('https://pay.pesapal.com/v3/api/Auth/RequestToken', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        "consumer_key": "vuz9TVO2PVQfhWZn80AHlbeQfaZJVb2F",
-        "consumer_secret": "v8VrfOhNbhtOLE1j1J/obknyKY4="
-      })
-    });
-    
-    const authData = await authResponse.json();
-    if (!authData.token) throw new Error("Handshake mismatch.");
-
-    const orderPayload = {
-      "id": uniqueReference,
-      "amount": amount,
-      "description": `HouseFinder Portfolio Upgrade: ${packageTier.replace('_', ' ')}`,
-      "callback_url": "https://studio-6076456451-c38fd.web.app/",
-      "notification_id": "00000000-0000-0000-0000-000000000000",
-      "billing_address": {
-        "email_address": userEmail,
-        "phone_number": "",
-        "country_code": "UG",
-        "first_name": "Landlord",
-        "last_name": "User"
-      }
-    };
-
-    const orderResponse = await fetch('https://pay.pesapal.com/v3/api/Transactions/SubmitOrderRequest', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authData.token}`
-      },
-      body: JSON.stringify(orderPayload)
-    });
-
-    const orderData = await orderResponse.json();
-    if (orderData.redirect_url) {
-      window.location.href = orderData.redirect_url;
-    } else {
-      throw new Error("Redirect initialization skipped.");
-    }
-
-  } catch (error) {
-    let targetLimit = 2;
-    if (packageTier === 'plus_tier') targetLimit = 10;
-    if (packageTier === 'unlimited_tier') targetLimit = 9999;
-
-    const userPrompt = confirm(
-      `🇺🇬 HOUSEFINDER UGANDA MOBILE MONEY PAYMENT\n\n` +
-      `To complete your upgrade securely:\n` +
-      `1. Send ${amount.toLocaleString()} UGX via Mobile Money to: 0775989760 (Solome Gift)\n` +
-      `2. State your email "${userEmail}" as the transaction reason.\n\n` +
-      `Click "OK" if you have made or are making the payment so your dashboard updates instantly for database approval!`
-    );
-
-    if (userPrompt) {
-      try {
-        if (packageTier === 'boost_feature') {
-          alert("Highlight tracking request logged! Our backend is verifying the reference.");
-        } else {
-          await updateDoc(doc(window.db, 'users', user.uid), {
-            listingLimit: targetLimit
-          });
-          alert("Account limit updated to " + (targetLimit === 9999 ? "Unlimited" : targetLimit) + " slots successfully! Refreshing dashboard.");
-          showSection('dashboard');
-        }
-      } catch (dbErr) {
-        console.error("Provisional credit execution track failed:", dbErr);
-      }
-    }
-  }
-};
 
 // ================= MULTI-IMAGE HANDLERS =================
 window.showAddListingForm = () => {
@@ -634,7 +392,7 @@ window.showAddListingForm = () => {
   if (fileInput) {
     const clone = fileInput.cloneNode(true);
     fileInput.parentNode.replaceChild(clone, fileInput);
-    
+
     clone.addEventListener('change', function(e) {
       const files = Array.from(e.target.files);
       if (files.length === 0) return;
@@ -669,32 +427,23 @@ window.removeSelectedPhoto = (index) => {
   window.selectedFormFiles[index] = null;
   const card = document.getElementById(`prev-card-${index}`);
   if (card) card.remove();
-  
+
   const activeCount = window.selectedFormFiles.filter(f => f !== null).length;
   const countBadge = document.getElementById('photo-count-badge');
   if (countBadge) countBadge.textContent = `${activeCount} photos selected`;
 };
 
 window.addListing = async () => {
-  const user = window.auth.currentUser;
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) { alert('You must be logged in.'); return; }
-
-  const userDoc = await getDoc(doc(window.db, 'users', user.uid));
-  const userData = userDoc.data();
-  const listingCount = userData.listingCount || 0;
-  const listingLimit = userData.listingLimit || 2;
-  const isAdmin = (user.email && user.email === ADMIN_EMAIL);
-  if (!isAdmin && listingCount >= listingLimit) {
-    alert('You have reached your free listing limit. Please upgrade.');
-    return;
-  }
 
   const title = document.getElementById('new-title').value.trim();
   const location = document.getElementById('new-location').value.trim();
   const category = document.getElementById('new-category').value;
   const bedrooms = parseInt(document.getElementById('new-bedrooms').value) || 0;
   const price = parseInt(document.getElementById('new-price').value) || 0;
-  const contactEmail = document.getElementById('new-contact').value.trim();
+  const landlordName = document.getElementById('new-landlord-name').value.trim();
+  const landlordPhone = document.getElementById('new-landlord-phone').value.trim();
   const landlordWhatsApp = document.getElementById('new-whatsapp').value.trim();
   const description = document.getElementById('new-description').value.trim();
 
@@ -703,15 +452,15 @@ window.addListing = async () => {
   const validFiles = window.selectedFormFiles.filter(file => file !== null);
 
   const submitBtn = document.querySelector('#add-listing-form button.primary');
-  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading images (0/' + validFiles.length + ')…'; }
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Uploading images (0/' + validFiles.length + ')...'; }
 
   let imageURLs = [];
-  
+
   try {
     if (validFiles.length > 0) {
       for (let i = 0; i < validFiles.length; i++) {
         const file = validFiles[i];
-        if (submitBtn) submitBtn.textContent = `Uploading photo ${i + 1} of ${validFiles.length}…`;
+        if (submitBtn) submitBtn.textContent = `Uploading photo ${i + 1} of ${validFiles.length}...`;
 
         const base64Data = await new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -731,43 +480,51 @@ window.addListing = async () => {
         }
 
         const data = await response.json();
-        if (data.url) { 
-          imageURLs.push(data.url); 
-        } else { 
-          throw new Error(data.error || `Upload error at position ${i}`); 
+        if (data.url) {
+          imageURLs.push(data.url);
+        } else {
+          throw new Error(data.error || `Upload error at position ${i}`);
         }
       }
     }
 
-    if (submitBtn) submitBtn.textContent = 'Saving Listing Details…';
+    if (submitBtn) submitBtn.textContent = 'Saving Listing Details...';
 
-    await addDoc(collection(window.db, 'listings'), {
-      landlordId: user.uid,
-      title, location, category,
-      bedrooms, price, contactEmail, landlordWhatsApp,
-      description,
-      images: imageURLs,
-      active: true,
-      featured: false,
-      verified: false,
-      spotlight: false,         // 👈 NEW SPOTLIGHT FIELD
-      views: 0,
-      createdAt: new Date()
-    });
+    const { error: insertError } = await supabase
+      .from('listings')
+      .insert({
+        created_by: user.id,
+        title,
+        location,
+        category,
+        bedrooms,
+        price,
+        description,
+        landlord_name: landlordName,
+        landlord_phone: landlordPhone,
+        landlord_whatsapp: landlordWhatsApp,
+        images: imageURLs,
+        active: true,
+        status: 'pending',
+        featured: false,
+        verified: false,
+        spotlight: false,
+        views: 0,
+        source_type: 'manual',
+        published_at: new Date().toISOString(),
+      });
 
-    await updateDoc(doc(window.db, 'users', user.uid), {
-      listingCount: increment(1)
-    });
+    if (insertError) throw insertError;
 
     document.getElementById('add-listing-form').style.display = 'none';
     showSection('dashboard');
-    alert('Property posted successfully with all selected photos!');
+    alert('Property posted successfully! It will appear publicly once approved.');
   } catch (error) {
-    alert('Image Pipeline Error: ' + error.message);
+    alert('Error: ' + error.message);
   } finally {
     if (submitBtn) {
-      submitBtn.disabled = false; 
-      submitBtn.textContent = 'Submit Listing'; 
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Listing';
     }
   }
 };
@@ -776,51 +533,50 @@ window.addListing = async () => {
 async function loadMyListings() {
   const container = document.getElementById('my-listings');
   if (!container) return;
-  const user = window.auth.currentUser;
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) { container.innerHTML = '<p>Please log in to see your listings.</p>'; return; }
 
   try {
-    const q = query(
-      collection(window.db, 'listings'),
-      where('landlordId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
-    const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    if (listings.length === 0) {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, title, location, price, bedrooms, images, featured, verified, spotlight, views, active, status')
+      .eq('created_by', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
       container.innerHTML = '<p>You have no listings yet.</p>';
       return;
     }
-    container.innerHTML = listings.map(l => `
+
+    container.innerHTML = data.map(l => `
       <div class="listing-card ${l.featured ? 'featured' : ''}">
         <div class="listing-image-wrapper" onclick="openDetailModal('${l.id}')">
           ${l.images && l.images.length > 0
             ? `<img src="${l.images[0]}" alt="${l.title}">`
             : `<div style="height:140px;background:#1e293b;display:flex;align-items:center;justify-content:center;">
                 <span style="color:#64748b;">No Image</span></div>`}
-          ${l.images && l.images.length > 1 ? `<span class="photo-count">📷 ${l.images.length} photos</span>` : ''}
+          ${l.images && l.images.length > 1 ? `<span class="photo-count">${l.images.length} photos</span>` : ''}
         </div>
         <div class="card-body">
           <div class="badge-group">
-            ${l.featured ? '<span class="badge badge-featured">⭐ Featured</span>' : ''}
-            ${l.verified ? '<span class="badge badge-verified">✅ Verified</span>' : ''}
-            ${l.spotlight ? '<span class="badge" style="background:#8b5cf6;">🔦 Spotlight</span>' : ''}
+            ${l.featured ? '<span class="badge badge-featured">Featured</span>' : ''}
+            ${l.verified ? '<span class="badge badge-verified">Verified</span>' : ''}
+            ${l.spotlight ? '<span class="badge" style="background:#8b5cf6;">Spotlight</span>' : ''}
           </div>
           <span class="category-badge">${formatCategory(l.category)}</span>
           <h3>${l.title || 'Untitled'} - ${l.bedrooms || 0} Bd</h3>
-          <p><strong>📍</strong> ${l.location || 'N/A'}</p>
+          <p>${l.location || 'N/A'}</p>
           <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
-          <p class="views">🔥 ${l.views || 0} views</p>
-          <p>Status: ${l.active ? '✅ Available' : '🏠 Rented'}</p>
+          <p class="views">${l.views || 0} views</p>
+          <p>Status: ${l.active ? 'Available' : 'Rented'} (${l.status})</p>
           <div class="card-actions">
-            <button class="secondary" onclick="openDetailModal('${l.id}')">🔍 View</button>
+            <button class="secondary" onclick="openDetailModal('${l.id}')">View</button>
             <button class="secondary" onclick="toggleListing('${l.id}', ${!l.active})">
               ${l.active ? 'Mark as Rented' : 'Mark as Available'}
             </button>
           </div>
-          ${!l.featured ? `
-            <button class="primary" style="background:#d97706; padding:0.4rem 0.8rem; font-size:0.8rem; width:100%; margin-top:0.5rem; border-radius:6px;" onclick="window.payWithMobileMoney(5000, 'boost_feature')">⭐ Highlight Property (5,000 UGX)</button>
-          ` : ''}
         </div>
       </div>
     `).join('');
@@ -831,18 +587,27 @@ async function loadMyListings() {
 }
 
 window.toggleListing = async (id, newStatus) => {
-  await updateDoc(doc(window.db, 'listings', id), { active: newStatus });
+  const { error } = await supabase
+    .from('listings')
+    .update({ active: newStatus })
+    .eq('id', id);
+
+  if (error) {
+    alert('Error updating listing: ' + error.message);
+    return;
+  }
   loadMyListings();
-  loadListings();
 };
 
 // ================= DETAIL MODAL (IMAGE GALLERY) =================
 window.openDetailModal = async (listingId) => {
-  const ref = doc(window.db, 'listings', listingId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return;
-  const l = snap.data();
-  l.id = listingId;
+  const { data: l, error } = await supabase
+    .from('listings')
+    .select('id, title, description, category, location, price, bedrooms, images, views, landlord_whatsapp, landlord_phone')
+    .eq('id', listingId)
+    .maybeSingle();
+
+  if (error || !l) return;
 
   let imagesHTML = '';
   if (l.images && l.images.length > 0) {
@@ -869,16 +634,16 @@ window.openDetailModal = async (listingId) => {
         ${imagesHTML}
         <div class="modal-body">
           <h2>${l.title || 'Untitled'}</h2>
-          <p><strong>📍</strong> ${l.location || 'N/A'}</p>
+          <p><strong>Location:</strong> ${l.location || 'N/A'}</p>
           <p><strong>Category:</strong> ${formatCategory(l.category)}</p>
           <p><strong>Bedrooms:</strong> ${l.bedrooms || 0}</p>
           <p class="price">${l.price != null ? l.price.toLocaleString() + ' UGX/month' : 'Price not set'}</p>
           <p><strong>Views:</strong> ${l.views || 0}</p>
           <p>${l.description || ''}</p>
           <div class="modal-actions">
-            ${l.landlordWhatsApp ? 
-              `<a href="https://wa.me/${l.landlordWhatsApp}?text=Hi,%20I'm%20interested%20in%20your%20property:%20${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">💬 Chat on WhatsApp</a>`
-              : `<span>📞 ${l.contactEmail || 'N/A'}</span>`
+            ${l.landlord_whatsapp ?
+              `<a href="https://wa.me/${l.landlord_whatsapp}?text=Hi,%20I'm%20interested%20in%20your%20property:%20${encodeURIComponent(l.title || '')}" target="_blank" class="wa-btn">Chat on WhatsApp</a>`
+              : `<span>${l.landlord_phone || 'N/A'}</span>`
             }
           </div>
         </div>
@@ -889,6 +654,12 @@ window.openDetailModal = async (listingId) => {
   const oldModal = document.getElementById('listing-modal');
   if (oldModal) oldModal.remove();
   document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+  // Increment views
+  await supabase
+    .from('listings')
+    .update({ views: (l.views || 0) + 1 })
+    .eq('id', listingId);
 };
 
 window.changeModalImage = (dir) => {

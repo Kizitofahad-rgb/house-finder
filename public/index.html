@@ -3,84 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>HouseFinder Uganda — Verified Houses for Rent Without Brokers</title>
-  <meta name="description" content="Find furnished apartments, single rooms, hostels, and houses for rent in Kampala directly from verified landlords. No expensive broker fees. Save time and connect instantly on WhatsApp.">
-  <meta name="keywords" content="houses for rent kampala, apartments for rent uganda, hostels kikoni, single rooms makindye, housefinder uganda, rental search uganda">
-  
-  <!-- Google Search Console verification -->
-  <meta name="google-site-verification" content="zbOFWJhIBj60S6D3Rwu1yWUNM25tKXkSAjfirFh-68U" />
+
+  <title>HouseFinder Uganda — We're Building Something Better</title>
+  <meta name="description" content="HouseFinder Uganda is being rebuilt into a smarter property discovery platform. Finding a better place to live is about to get easier.">
 
   <link rel="manifest" href="/manifest.json">
-
-  <!-- Basic favicon (fixes 404) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏠</text></svg>">
 
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://studio-6076456451-c38fd.web.app/">
-  <meta property="og:title" content="HouseFinder Uganda — Verified Houses for Rent Without Brokers">
-  <meta property="og:description" content="Discover houses and apartments across Uganda directly from landlords. No expensive broker fees. Instant WhatsApp connection.">
-  <meta property="og:image" content="https://studio-6076456451-c38fd.web.app/favicon.ico">
+  <meta property="og:title" content="HouseFinder Uganda — We're Building Something Better">
+  <meta property="og:description" content="HouseFinder is being rebuilt into a smarter property discovery platform for Uganda.">
 
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="HouseFinder Uganda">
-  <meta name="twitter:description" content="Rentals in Uganda managed directly by landlords.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { supabase } from './supabase-client.js';
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCIJG-Zz1SUEAOMtvezDuedNolk6VIKcas",
-      authDomain: "studio-6076456451-c38fd.firebaseapp.com",
-      projectId: "studio-6076456451-c38fd",
-      storageBucket: "studio-6076456451-c38fd.firebasestorage.app",
-      messagingSenderId: "657925779778",
-      appId: "1:657925779778:web:a3bee5a08da4c18aaa18db"
-    };
+    // Auth state listener — updates nav based on session
+    supabase.auth.onAuthStateChange((event, session) => {
+      (async () => {
+        const linksContainer = document.getElementById('nav-links');
+        if (!linksContainer) return;
 
-    const app = initializeApp(firebaseConfig);
-    window.db = getFirestore(app);
-    window.auth = getAuth(app);
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle();
 
-    const navLinks = document.getElementById('nav-links');
-    onAuthStateChanged(window.auth, async (user) => {
-      const linksContainer = document.getElementById('nav-links');
-      if (!linksContainer) return;
-
-      if (user) {
-        const isAdmin = user.email && user.email.trim() === 'kizitofahad665@gmail.com';
-        
-        linksContainer.innerHTML = `
-          <button onclick="showSection('home')">Home</button>
-          ${isAdmin ? `<button onclick="window.location.href='admin.html'" style="border: 1px solid #10b981; color: #10b981; font-weight:600;">⚙️ Admin Panel</button>` : ''}
-          <button id="dashboard-btn" onclick="showSection('dashboard')">Dashboard</button>
-          <button onclick="window.logout()">Logout</button>
-        `;
-      } else {
-        linksContainer.innerHTML = `
-          <button onclick="showSection('home')">Home</button>
-          <button onclick="showSection('login')">Login</button>
-          <button onclick="showSection('signup')">Sign Up</button>
-        `;
-      }
-
-      if (window.currentSection === 'dashboard') {
-        showSection('dashboard');
-      }
+          const role = profile?.role || 'seeker';
+          linksContainer.innerHTML = `
+            <button onclick="showSection('home')">Home</button>
+            ${role === 'landlord' || role === 'agent' ? `<button onclick="showSection('dashboard')">Dashboard</button>` : ''}
+            <button onclick="window.logout()">Logout</button>
+          `;
+        } else {
+          linksContainer.innerHTML = `
+            <button onclick="showSection('home')">Home</button>
+            <button onclick="showSection('login')">Login</button>
+            <button onclick="showSection('signup')">Sign Up</button>
+          `;
+        }
+      })();
     });
 
-    window.logout = () => {
-      signOut(window.auth).then(() => {
-        window.location.reload();
-      });
+    window.logout = async () => {
+      await supabase.auth.signOut();
+      window.location.reload();
     };
   </script>
 </head>
 <body>
+
+  <!-- Nav -->
   <nav id="navbar">
     <div class="nav-container">
       <div class="logo" onclick="showSection('home')" style="cursor: pointer;">
@@ -98,69 +78,148 @@
     </div>
   </nav>
 
-  <div id="pwa-install-banner" style="display: none; background: #1e293b; border-bottom: 2px solid #10b981; padding: 12px 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-    <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div style="background: #10b981; color: #ffffff; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-        </div>
-        <div>
-          <h4 style="margin: 0; color: #ffffff; font-size: 0.95rem; font-weight: 600;">Install HouseFinder App</h4>
-          <p style="margin: 2px 0 0 0; color: #94a3b8; font-size: 0.8rem;">Access verified listings instantly right from your home screen!</p>
-        </div>
-      </div>
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <button id="pwa-cancel-btn" style="background: transparent; border: none; color: #94a3b8; font-size: 0.85rem; font-weight: 500; cursor: pointer; padding: 6px 12px;">Maybe Later</button>
-        <button id="pwa-install-btn" style="background: #10b981; color: #ffffff; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: 700; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);">Download App</button>
+  <!-- Under Construction Hero -->
+  <section class="uc-hero" id="uc-hero">
+    <div class="uc-hero-bg"></div>
+    <div class="uc-hero-overlay"></div>
+    <div class="uc-hero-content">
+      <span class="uc-badge">HouseFinder Uganda</span>
+      <h1 class="uc-hero-title">Finding a better place to live<br>is about to get easier.</h1>
+      <p class="uc-hero-subtitle">HouseFinder is being rebuilt into a smarter property discovery platform for Uganda.</p>
+      <div class="uc-hero-cta">
+        <button class="uc-btn-primary" onclick="document.getElementById('uc-progress').scrollIntoView({behavior:'smooth'})">Explore Soon</button>
+        <button class="uc-btn-secondary" onclick="document.getElementById('uc-coming').scrollIntoView({behavior:'smooth'})">Stay Tuned</button>
       </div>
     </div>
-  </div>
-
-  <main id="app">
-  </main>
-
-  <section class="marketing-intro" id="marketing-flow" style="max-width:1200px; margin: 4rem auto 2rem; padding: 0 1.5rem;">
-    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin-bottom: 3rem;">
-    
-    <div style="text-align: center; margin-bottom: 3rem;">
-      <h2 style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; color:#ffffff;">Simple. Direct. No Broker Fees.</h2>
-      <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem;">Whether you are looking for a room or leasing out an entire property portfolio.</p>
-    </div>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2.5rem;">
-      
-      <div style="background: #1e293b; padding: 2.5rem 2rem; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">
-        <h3 style="font-size: 1.4rem; font-weight:600; margin-bottom: 1.25rem; color: #10b981; display:flex; align-items:center; gap:0.5rem;">🔍 For House Seekers</h3>
-        <ol style="color: #f8fafc; margin-left: 1.25rem; line-height: 1.8; font-size: 0.98rem;">
-          <li style="margin-bottom: 0.75rem;">Filter listings by location, budget, or accommodation category.</li>
-          <li style="margin-bottom: 0.75rem;">Tap on a house card to view detailed description and multiple photos.</li>
-          <li>Click <strong style="color: #10b981;">"Chat"</strong> to talk directly with the property manager on WhatsApp.</li>
-        </ol>
-      </div>
-
-      <div style="background: #1e293b; padding: 2.5rem 2rem; border-radius: 12px; border: 2px solid #10b981; position: relative; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);">
-        <span style="position: absolute; top:-12px; right:15px; background:#10b981; color:white; font-size:0.75rem; font-weight:700; padding:4px 10px; border-radius:4px; letter-spacing: 0.05em;">LANDLORDS</span>
-        <h3 style="font-size: 1.4rem; font-weight:600; margin-bottom: 1.25rem; color: #10b981;">🏢 For Landlords & Agents</h3>
-        <ol style="color: #f8fafc; margin-left: 1.25rem; line-height: 1.8; font-size: 0.98rem; margin-bottom: 1.75rem;">
-          <li style="margin-bottom: 0.75rem;">Click <strong style="color: #10b981;">"Sign Up"</strong> on the menu bar and select <strong>Landlord/Agent</strong>.</li>
-          <li style="margin-bottom: 0.75rem;">Head to your customized personal <strong>Dashboard</strong>.</li>
-          <li>Upload photos, add description details, and receive client calls directly!</li>
-        </ol>
-        <button onclick="showSection('signup')" class="primary" style="width: 100%; padding: 0.75rem; font-weight: 700; font-size: 1rem; border-radius: 6px;">List Your Property Now (Free)</button>
-      </div>
-
+    <div class="uc-scroll-hint">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 5v14M19 12l-7 7-7-7"/>
+      </svg>
     </div>
   </section>
+
+  <!-- Progress Section -->
+  <section class="uc-section" id="uc-progress">
+    <div class="uc-section-inner">
+      <h2 class="uc-section-title">Building the New HouseFinder</h2>
+      <p class="uc-section-desc">A major new version is under construction. Here's where the rebuild stands:</p>
+
+      <div class="uc-progress-board">
+        <div class="uc-progress-row">
+          <span class="uc-progress-label">Database</span>
+          <div class="uc-progress-bar"><div class="uc-progress-fill uc-done" style="width:100%"></div></div>
+          <span class="uc-progress-status uc-status-done">Done</span>
+        </div>
+        <div class="uc-progress-row">
+          <span class="uc-progress-label">Search Engine</span>
+          <div class="uc-progress-bar"><div class="uc-progress-fill uc-active" style="width:60%"></div></div>
+          <span class="uc-progress-status uc-status-active">In Progress</span>
+        </div>
+        <div class="uc-progress-row">
+          <span class="uc-progress-label">Property Discovery</span>
+          <div class="uc-progress-bar"><div class="uc-progress-fill uc-active" style="width:40%"></div></div>
+          <span class="uc-progress-status uc-status-active">In Progress</span>
+        </div>
+        <div class="uc-progress-row">
+          <span class="uc-progress-label">Verification</span>
+          <div class="uc-progress-bar"><div class="uc-progress-fill" style="width:15%"></div></div>
+          <span class="uc-progress-status uc-status-pending">Pending</span>
+        </div>
+        <div class="uc-progress-row">
+          <span class="uc-progress-label">Launch</span>
+          <div class="uc-progress-bar"><div class="uc-progress-fill" style="width:5%"></div></div>
+          <span class="uc-progress-status uc-status-pending">Pending</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Coming Soon Features -->
+  <section class="uc-section uc-section-alt" id="uc-coming">
+    <div class="uc-section-inner">
+      <h2 class="uc-section-title">What's Coming</h2>
+      <p class="uc-section-desc">HouseFinder is evolving from "wait for landlords to upload houses" to discovering properties from across the market.</p>
+
+      <div class="uc-features-grid">
+        <div class="uc-feature-card">
+          <div class="uc-feature-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+          <h3>Discover Properties</h3>
+          <p>Search across multiple sources to find homes that match your needs — not just what one landlord uploaded.</p>
+        </div>
+        <div class="uc-feature-card">
+          <div class="uc-feature-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <h3>Search by Location</h3>
+          <p>Filter by area, city, price range, and bedrooms to narrow down exactly what you're looking for.</p>
+        </div>
+        <div class="uc-feature-card">
+          <div class="uc-feature-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-9 11-5.5-3.5-9-6-9-11a5 5 0 0 1 9-3 5 5 0 0 1 9 3z"/></svg>
+          </div>
+          <h3>Verified Listings</h3>
+          <p>Every property goes through a verification process so you can trust what you see.</p>
+        </div>
+        <div class="uc-feature-card">
+          <div class="uc-feature-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-6 0v4"/><rect x="5" y="9" width="14" height="11" rx="2"/></svg>
+          </div>
+          <h3>Claim Your Property</h3>
+          <p>Are you a landlord or agent? Soon you'll be able to claim listings and manage them directly.</p>
+        </div>
+        <div class="uc-feature-card">
+          <div class="uc-feature-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3>Connect Directly</h3>
+          <p>Reach property managers straight through WhatsApp — no expensive broker fees.</p>
+        </div>
+        <div class="uc-feature-card">
+          <div class="uc-feature-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          </div>
+          <h3>Compare Options</h3>
+          <p>Browse side by side and compare properties to make the right choice for your budget.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Landlord / Agent CTA -->
+  <section class="uc-section">
+    <div class="uc-section-inner">
+      <div class="uc-landlord-cta">
+        <h2>Are you a landlord or agent?</h2>
+        <p>The new HouseFinder will let you claim listings, manage your portfolio, and reach more seekers directly. Create an account now and we'll notify you when dashboard features go live.</p>
+        <div class="uc-landlord-buttons">
+          <button class="uc-btn-primary" onclick="showSection('signup')">Create Account</button>
+          <button class="uc-btn-secondary" onclick="showSection('login')">Already have an account?</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="uc-footer">
+    <div class="uc-footer-inner">
+      <div class="uc-footer-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5V21H3V10.5z"/><path d="M9 21V12h6v9"/></svg>
+        <span>HouseFinder Uganda</span>
+      </div>
+      <p class="uc-footer-text">A smarter property discovery platform for Uganda. Coming soon.</p>
+    </div>
+  </footer>
+
+  <!-- App container for auth/dashboard sections -->
+  <main id="app" style="display:none;"></main>
 
   <script type="module">
     const version = '?v=' + Date.now();
     import('./auth.js' + version).then(() => {
       return import('./app.js' + version);
-    }).catch(err => console.error("Error launching application layers:", err));
+    }).catch(err => console.error('Error launching application layers:', err));
   </script>
 
   <script>
@@ -171,38 +230,6 @@
           .catch(err => console.error('Service Worker registration failed:', err));
       });
     }
-
-    // PWA install logic (works as intended)
-    let deferredPrompt;
-    const installBanner = document.getElementById('pwa-install-banner');
-    const installBtn = document.getElementById('pwa-install-btn');
-    const cancelBtn = document.getElementById('pwa-cancel-btn');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBanner.style.display = 'block';
-    });
-
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`PWA installation intent: ${outcome}`);
-        deferredPrompt = null;
-        installBanner.style.display = 'none';
-      }
-    });
-
-    cancelBtn.addEventListener('click', () => {
-      installBanner.style.display = 'none';
-    });
-
-    window.addEventListener('appinstalled', () => {
-      installBanner.style.display = 'none';
-      deferredPrompt = null;
-      alert('HouseFinder Uganda has been downloaded and added to your Home Screen! 🎉');
-    });
   </script>
 </body>
 </html>

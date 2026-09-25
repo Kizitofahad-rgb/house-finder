@@ -376,3 +376,309 @@ button.secondary:hover { background:#475569; }
   from { opacity: 0; transform: scale(1.02); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* ================= UNDER CONSTRUCTION EXPERIENCE ================= */
+.uc-hero {
+  position: relative;
+  min-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.uc-hero-bg {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: url('https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=1920') center/cover no-repeat;
+  transform: scale(1.05);
+  animation: ucZoom 20s ease-in-out infinite alternate;
+}
+@keyframes ucZoom {
+  from { transform: scale(1.05); }
+  to { transform: scale(1.15); }
+}
+.uc-hero-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(135deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.7) 50%, rgba(16,185,129,0.15) 100%);
+}
+.uc-hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 800px;
+  padding: 0 2rem;
+  animation: ucFadeUp 1s ease-out;
+}
+@keyframes ucFadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.uc-badge {
+  display: inline-block;
+  background: rgba(16,185,129,0.15);
+  border: 1px solid rgba(16,185,129,0.3);
+  color: #10b981;
+  padding: 0.4rem 1.2rem;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(8px);
+}
+.uc-hero-title {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.15;
+  margin-bottom: 1.25rem;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+.uc-hero-subtitle {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: rgba(255,255,255,0.85);
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.uc-hero-cta {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.uc-btn-primary {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border: none;
+  padding: 0.9rem 2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+}
+.uc-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16,185,129,0.4);
+}
+.uc-btn-secondary {
+  background: rgba(255,255,255,0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 0.9rem 2rem;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(8px);
+}
+.uc-btn-secondary:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-2px);
+}
+.uc-scroll-hint {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.5);
+  animation: ucBounce 2s ease-in-out infinite;
+  z-index: 2;
+}
+@keyframes ucBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(10px); }
+}
+
+/* Progress Section */
+.uc-section {
+  padding: 4rem 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.uc-section-alt {
+  background: rgba(15,23,42,0.5);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  max-width: 100%;
+}
+.uc-section-inner {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.uc-section-title {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 700;
+  color: #f8fafc;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+.uc-section-desc {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+}
+
+/* Progress Board */
+.uc-progress-board {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.uc-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.uc-progress-row:last-child { border-bottom: none; }
+.uc-progress-label {
+  flex: 0 0 160px;
+  font-weight: 600;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+.uc-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 50px;
+  overflow: hidden;
+}
+.uc-progress-fill {
+  height: 100%;
+  border-radius: 50px;
+  background: rgba(255,255,255,0.1);
+  transition: width 1s ease-out;
+}
+.uc-progress-fill.uc-done { background: linear-gradient(90deg, #10b981, #059669); }
+.uc-progress-fill.uc-active { background: linear-gradient(90deg, #f59e0b, #d97706); animation: ucPulse 2s ease-in-out infinite; }
+@keyframes ucPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.uc-progress-status {
+  flex: 0 0 100px;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.uc-status-done { color: #10b981; }
+.uc-status-active { color: #f59e0b; }
+.uc-status-pending { color: #64748b; }
+
+/* Features Grid */
+.uc-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+.uc-feature-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
+  transition: all 0.3s;
+}
+.uc-feature-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(16,185,129,0.3);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.uc-feature-icon {
+  width: 56px;
+  height: 56px;
+  background: rgba(16,185,129,0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10b981;
+  margin-bottom: 1.25rem;
+}
+.uc-feature-card h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #f8fafc;
+  margin-bottom: 0.5rem;
+}
+.uc-feature-card p {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* Landlord CTA */
+.uc-landlord-cta {
+  background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(15,23,42,0.5));
+  border: 1px solid rgba(16,185,129,0.2);
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto;
+}
+.uc-landlord-cta h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 1rem;
+}
+.uc-landlord-cta p {
+  color: #94a3b8;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  font-size: 1rem;
+}
+.uc-landlord-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Footer */
+.uc-footer {
+  background: rgba(15,23,42,0.7);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding: 2rem 1.5rem;
+  margin-top: 2rem;
+}
+.uc-footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+}
+.uc-footer-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+.uc-footer-text {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .uc-hero { min-height: 70vh; }
+  .uc-progress-label { flex: 0 0 100px; font-size: 0.85rem; }
+  .uc-progress-status { flex: 0 0 70px; font-size: 0.75rem; }
+  .uc-features-grid { grid-template-columns: 1fr; }
+}

@@ -1,14 +1,20 @@
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { supabase } from './supabase-client.js';
 
-// Expose auth functions globally
 window.signup = async (email, password, role) => {
   try {
-    const userCredential = await createUserWithEmailAndPassword(window.auth, email, password);
-    const user = userCredential.user;
-    // Save user role in Firestore
-    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-    await setDoc(doc(window.db, 'users', user.uid), { email, role });
-    showSection('home');
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { role },
+      },
+    });
+
+    if (error) throw error;
+
+    if (data.user) {
+      showSection('home');
+    }
   } catch (error) {
     const signupError = document.getElementById('signup-error');
     if (signupError) signupError.textContent = error.message;
@@ -17,7 +23,8 @@ window.signup = async (email, password, role) => {
 
 window.login = async (email, password) => {
   try {
-    await signInWithEmailAndPassword(window.auth, email, password);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
     showSection('home');
   } catch (error) {
     const loginError = document.getElementById('login-error');
@@ -26,37 +33,56 @@ window.login = async (email, password) => {
 };
 
 window.logout = async () => {
-  await signOut(window.auth);
+  await supabase.auth.signOut();
+  window.location.reload();
 };
 
-// Listen to auth state securely with element guard checks
-onAuthStateChanged(window.auth, (user) => {
-  const guestLinks = document.getElementById('guest-links');
-  const userLinks = document.getElementById('user-links');
-  const dashboardBtn = document.getElementById('dashboard-btn');
+async function fetchProfile(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('role, full_name, phone')
+    .eq('id', userId)
+    .maybeSingle();
 
-  if (user) {
-    // Only execute styles if the UI navigation components exist on the current viewport
-    if (guestLinks) guestLinks.style.display = 'none';
-    if (userLinks) userLinks.style.display = 'inline';
-    
-    // Fetch role and decide if dashboard should show
-    import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js').then(({ doc, getDoc }) => {
-      getDoc(doc(window.db, 'users', user.uid)).then(docSnap => {
-        if (docSnap.exists() && docSnap.data().role === 'landlord') {
-          if (dashboardBtn) dashboardBtn.style.display = 'inline-block';
-        } else {
-          if (dashboardBtn) dashboardBtn.style.display = 'none';
-        }
-      });
-    });
-  } else {
-    if (guestLinks) guestLinks.style.display = 'inline';
-    if (userLinks) userLinks.style.display = 'none';
+  if (error) {
+    console.error('Error fetching profile:', error.message);
+    return null;
   }
+  return data;
+}
 
-  // Redraw current section safely if available
-  if (window.currentSection && typeof showSection === 'function') {
-    showSection(window.currentSection);
-  }
+window.getCurrentUser = () => supabase.auth.getUser();
+
+window.getCurrentProfile = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  return fetchProfile(user.id);
+};
+
+supabase.auth.onAuthStateChange((event, session) => {
+  (async () => {
+    const linksContainer = document.getElementById('nav-links');
+    if (!linksContainer) return;
+
+    if (session?.user) {
+      const profile = await fetchProfile(session.user.id);
+      const role = profile?.role || 'seeker';
+
+      linksContainer.innerHTML = `
+        <button onclick="showSection('home')">Home</button>
+        ${role === 'landlord' || role === 'agent' ? `<button id="dashboard-btn" onclick="showSection('dashboard')">Dashboard</button>` : ''}
+        <button onclick="window.logout()">Logout</button>
+      `;
+    } else {
+      linksContainer.innerHTML = `
+        <button onclick="showSection('home')">Home</button>
+        <button onclick="showSection('login')">Login</button>
+        <button onclick="showSection('signup')">Sign Up</button>
+      `;
+    }
+
+    if (window.currentSection && typeof showSection === 'function') {
+      showSection(window.currentSection);
+    }
+  })();
 });
